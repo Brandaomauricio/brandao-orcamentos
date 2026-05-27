@@ -1,0 +1,58 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: #F5F5F5;
+  color: #111111;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.mobile-shell {
+  max-width: 430px;
+  min-height: 100vh;
+  margin: 0 auto;
+  background: #F5F5F5;
+  position: relative;
+  overflow-x: hidden;
+}
+
+.safe-bottom {
+  padding-bottom: 92px;
+}
+
+.card {
+  border: 1px solid rgba(17,17,17,0.08);
+  background: #ffffff;
+  border-radius: 24px;
+  box-shadow: 0 12px 35px rgba(17,17,17,0.06);
+}
+
+.input {
+  width: 100%;
+  border: 1px solid rgba(17,17,17,0.12);
+  border-radius: 16px;
+  padding: 12px 14px;
+  background: #fff;
+  outline: none;
+}
+
+.label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #4A4A4A;
+  margin-bottom: 6px;
+}
