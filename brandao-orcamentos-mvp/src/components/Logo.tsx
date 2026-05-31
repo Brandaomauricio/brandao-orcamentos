@@ -5,7 +5,7 @@ export function Logo() {
     <div className="flex items-center gap-3">
       <Image
         src="/logo-brandao-orcamentos.jpg"
-        alt="Brandão Orçamentos"
+        alt="Obra Fechada por Brandão"
         width={150}
         height={56}
         className="h-12 w-auto rounded-md object-contain"

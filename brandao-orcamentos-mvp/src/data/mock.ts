@@ -11,12 +11,12 @@ export const appointments = [
 ];
 
 export const toolCards = [
-  "Checklist de visita técnica",
-  "Checklist antes da instalação",
-  "Modelos de mensagens",
-  "Serviços periféricos",
-  "Observações técnicas",
-  "Condições comerciais",
+  { title: "Checklist de visita técnica", href: "/ferramentas/checklists" },
+  { title: "Checklist antes da instalação", href: "/ferramentas/checklists" },
+  { title: "Modelos de mensagens", href: "/ferramentas/modelos-de-mensagens" },
+  { title: "Serviços periféricos", href: "/ferramentas/servicos-perifericos" },
+  { title: "Observações técnicas", href: "/ferramentas/observacoes-tecnicas" },
+  { title: "Condições comerciais", href: "/ferramentas/condicoes-comerciais" },
 ];
 
 export const services = [

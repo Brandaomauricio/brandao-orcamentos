@@ -17,8 +17,10 @@ export default function ToolsPage() {
     <AppShell>
       <AppHeader title="Ferramentas" subtitle="Recursos práticos para organizar visitas, propostas, instalação e comunicação." />
       <section className="grid grid-cols-1 gap-3 px-5">
-        {toolCards.map((title) => (
-          <CardLink key={title} href="/ferramentas" title={title} description={descriptions[title]} />
+        <CardLink href="/ferramentas/detalhadas" title="Ferramentas detalhadas" description="Guia rápido das ferramentas de apoio do app." />
+        <CardLink href="/ferramentas/meus-servicos" title="Meus serviços" description="Cadastre serviços padrão e valores para reutilizar." />
+        {toolCards.map((tool) => (
+          <CardLink key={tool.title} href={tool.href} title={tool.title} description={descriptions[tool.title]} />
         ))}
       </section>
     </AppShell>

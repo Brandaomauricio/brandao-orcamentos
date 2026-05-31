@@ -5,20 +5,18 @@ import { useParams } from "next/navigation";
 import { ProposalDocument, hasRealValue, type ProposalBudget, type ProposalClient, type ProposalProfile } from "@/components/ProposalDocument";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase/client";
 
-type PublicBudget = ProposalBudget & {
-  user_id: string;
+type BudgetWithRelations = ProposalBudget & {
   client_name: string | null;
   client_whatsapp: string | null;
   client_email: string | null;
   client_address: string | null;
   work_address: string | null;
-  public_link_enabled: boolean | null;
   clients: ProposalClient | ProposalClient[] | null;
 };
 
-export default function PublicProposalPage() {
-  const params = useParams<{ token: string }>();
-  const [budget, setBudget] = useState<PublicBudget | null>(null);
+export default function PrintableProposalPage() {
+  const params = useParams<{ id: string }>();
+  const [budget, setBudget] = useState<BudgetWithRelations | null>(null);
   const [profile, setProfile] = useState<ProposalProfile>(null);
   const [message, setMessage] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -35,9 +33,23 @@ export default function PublicProposalPage() {
     };
   }, [budget]);
 
-  const loadProposal = useCallback(async () => {
+  const loadBudget = useCallback(async () => {
     if (!isSupabaseConfigured) {
-      setMessage("Proposta não encontrada ou link desativado.");
+      setMessage("A conexão com o Supabase ainda não está configurada neste ambiente.");
+      setIsLoading(false);
+      return;
+    }
+
+    const { data: userData, error: authError } = await supabase.auth.getUser();
+    if (authError) {
+      console.error("Erro ao verificar usuário para proposta:", authError);
+      setMessage("Não foi possível verificar sua conta agora.");
+      setIsLoading(false);
+      return;
+    }
+
+    if (!userData.user) {
+      setMessage("Entre na sua conta para abrir a proposta.");
       setIsLoading(false);
       return;
     }
@@ -45,52 +57,42 @@ export default function PublicProposalPage() {
     const { data, error } = await supabase
       .from("quotes")
       .select("*,clients(name,whatsapp,email,address),quote_items(id,service_name,description,unit,unit_price,quantity,total_price,sort_order)")
-      .eq("public_token", params.token)
-      .eq("public_link_enabled", true)
+      .eq("id", params.id)
+      .eq("user_id", userData.user.id)
       .single();
 
-    if (error || !data) {
-      if (error) console.error("Erro ao carregar proposta pública:", error);
-      setMessage("Proposta não encontrada ou link desativado.");
+    if (error) {
+      console.error("Erro ao carregar proposta:", error);
+      setMessage("Não foi possível carregar a proposta agora. Verifique os dados do orçamento e tente novamente.");
       setIsLoading(false);
       return;
     }
 
-    const loadedBudget = data as PublicBudget;
-    setBudget(loadedBudget);
+    setBudget(data as BudgetWithRelations);
 
     const { data: profileData, error: profileError } = await supabase
       .from("profiles")
       .select("*")
-      .eq("user_id", loadedBudget.user_id)
+      .eq("user_id", userData.user.id)
       .limit(1);
 
     if (profileError) {
-      console.error("Erro ao carregar perfil da proposta pública:", profileError);
+      console.error("Erro ao carregar perfil para proposta:", profileError);
     }
 
     setProfile(((profileData?.[0] as ProposalProfile | undefined) ?? null) as ProposalProfile);
     setIsLoading(false);
-  }, [params.token]);
+  }, [params.id]);
 
   useEffect(() => {
-    loadProposal();
-  }, [loadProposal]);
+    loadBudget();
+  }, [loadBudget]);
 
   return (
     <main className="min-h-screen bg-technical px-4 py-5 text-graphite print:bg-white print:px-0 print:py-0">
       {isLoading ? <div className="mx-auto max-w-[794px] rounded-2xl bg-white p-4 text-sm font-black text-cement shadow-sm print:hidden">Carregando proposta...</div> : null}
       {message ? <div className="mx-auto max-w-[794px] rounded-2xl bg-white p-4 text-sm font-black text-wood shadow-sm print:hidden">{message}</div> : null}
-      {budget ? (
-        <>
-          <ProposalDocument budget={budget} client={client} profile={profile} showActions={false} />
-          <section className="mx-auto mt-5 max-w-[794px] print:hidden">
-            <button type="button" onClick={() => window.print()} className="block w-full rounded-2xl bg-warning px-5 py-4 text-center text-sm font-black text-graphite shadow-soft">
-              Imprimir / Salvar em PDF
-            </button>
-          </section>
-        </>
-      ) : null}
+      {budget ? <ProposalDocument budget={budget} client={client} profile={profile} /> : null}
     </main>
   );
 }

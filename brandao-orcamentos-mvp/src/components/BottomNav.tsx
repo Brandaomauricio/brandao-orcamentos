@@ -4,7 +4,7 @@ import { CalendarDays, FileText, Home, MoreHorizontal, PlusCircle } from "lucide
 const items = [
   { href: "/", label: "Início", icon: Home },
   { href: "/orcamentos", label: "Orçamentos", icon: FileText },
-  { href: "/orcamentos/novo", label: "Novo", icon: PlusCircle, featured: true },
+  { href: "/novo", label: "Novo", icon: PlusCircle, featured: true },
   { href: "/agenda", label: "Agenda", icon: CalendarDays },
   { href: "/mais", label: "Mais", icon: MoreHorizontal },
 ];

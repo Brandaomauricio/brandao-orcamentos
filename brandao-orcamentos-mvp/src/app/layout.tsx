@@ -2,14 +2,14 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Brandão Orçamentos",
-  description: "Preço definido com método. Orçamento apresentado com profissionalismo.",
+  title: "Obra Fechada",
+  description: "App de orçamentos profissionais para instaladores.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="pt-BR">
-      <body>{children}</body>
+      <body className="bg-technical text-graphite antialiased">{children}</body>
     </html>
   );
 }
