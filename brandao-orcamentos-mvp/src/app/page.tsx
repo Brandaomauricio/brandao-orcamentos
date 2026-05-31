@@ -102,7 +102,7 @@ export default function HomePage() {
     <AppShell>
       <AppHeader title="Obra Fechada" subtitle="por Brandão · Orçamentos profissionais para instaladores que querem vender com mais segurança." />
 
-      <section className="px-5 pb-4">
+      <section className="px-4 pb-4">
         <HomeHighlightsCarousel slides={ebookHighlights} onAction={openHighlight} message={highlightMessage} />
 
         <div className="mt-5">
@@ -132,7 +132,7 @@ export default function HomePage() {
           <CardLink href="/ferramentas" title="Ferramentas" description="Checklists e modelos." />
         </div>
 
-        <div className="mt-6 space-y-5">
+        <div className="mt-5 space-y-4">
           <section>
             <h2 className="text-lg font-black text-graphite">Últimos orçamentos</h2>
             <div className="mt-3 space-y-3">
