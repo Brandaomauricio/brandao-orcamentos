@@ -12,6 +12,7 @@ type PublicBudget = ProposalBudget & {
   client_email: string | null;
   client_address: string | null;
   work_address: string | null;
+  public_token: string | null;
   public_link_enabled: boolean | null;
   clients: ProposalClient | ProposalClient[] | null;
 };
@@ -42,12 +43,13 @@ export default function PublicProposalPage() {
       return;
     }
 
+    const token = decodeURIComponent(params.token);
     const { data, error } = await supabase
       .from("quotes")
-      .select("*,clients(name,whatsapp,email,address),quote_items(id,service_name,description,unit,unit_price,quantity,total_price,sort_order)")
-      .eq("public_token", params.token)
+      .select("*")
+      .eq("public_token", token)
       .eq("public_link_enabled", true)
-      .single();
+      .maybeSingle();
 
     if (error || !data) {
       if (error) console.error("Erro ao carregar proposta pública:", error);
@@ -56,7 +58,17 @@ export default function PublicProposalPage() {
       return;
     }
 
-    const loadedBudget = data as PublicBudget;
+    const { data: itemsData, error: itemsError } = await supabase
+      .from("quote_items")
+      .select("id,service_name,description,unit,unit_price,quantity,total_price,sort_order")
+      .eq("quote_id", data.id)
+      .order("sort_order", { ascending: true });
+
+    if (itemsError) {
+      console.error("Erro ao carregar itens da proposta pública:", itemsError);
+    }
+
+    const loadedBudget = { ...(data as PublicBudget), clients: null, quote_items: itemsData ?? [] };
     setBudget(loadedBudget);
 
     const { data: profileData, error: profileError } = await supabase

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import { ProposalDocument, hasRealValue, type ProposalBudget, type ProposalClient, type ProposalProfile } from "@/components/ProposalDocument";
-import { buildProposalWhatsAppMessage, buildWhatsAppUrl } from "@/lib/proposalShare";
+import { buildProposalWhatsAppMessage, buildWhatsAppUrl, getPublicProposalUrl } from "@/lib/proposalShare";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase/client";
 
 type BudgetWithRelations = ProposalBudget & {
@@ -97,7 +97,7 @@ export default function PrintableProposalPage() {
   }
 
   function publicUrl(token: string) {
-    return `${window.location.origin}/proposta/${token}`;
+    return getPublicProposalUrl(token);
   }
 
   async function ensurePublicLink() {
@@ -142,8 +142,6 @@ export default function PrintableProposalPage() {
     return buildProposalWhatsAppMessage({
       clientName: client?.name,
       quoteCode: quoteCode(),
-      totalValue: budget.total_value,
-      validUntil: budget.valid_until,
       publicUrl: publicUrl(publicLink.token),
       professionalName: profile?.professional_name,
     });

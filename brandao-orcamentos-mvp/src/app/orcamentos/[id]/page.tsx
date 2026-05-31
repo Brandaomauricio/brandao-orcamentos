@@ -7,7 +7,7 @@ import { AppHeader } from "@/components/AppHeader";
 import { AppShell } from "@/components/AppShell";
 import { StatusPill } from "@/components/StatusPill";
 import { currencyBRL } from "@/lib/format";
-import { buildProposalWhatsAppMessage, buildWhatsAppUrl } from "@/lib/proposalShare";
+import { buildProposalWhatsAppMessage, buildWhatsAppUrl, getPublicProposalUrl } from "@/lib/proposalShare";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase/client";
 
 type QuoteItem = {
@@ -203,7 +203,7 @@ export default function BudgetDetailsPage() {
   }
 
   function publicUrl(token: string) {
-    return `${window.location.origin}/proposta/${token}`;
+    return getPublicProposalUrl(token);
   }
 
   async function setPublicLink(enabled: boolean) {
@@ -258,8 +258,6 @@ export default function BudgetDetailsPage() {
     return buildProposalWhatsAppMessage({
       clientName: client?.name,
       quoteCode,
-      totalValue: quote.total_value,
-      validUntil: quote.valid_until,
       publicUrl: publicUrl(token),
       professionalName,
     });
