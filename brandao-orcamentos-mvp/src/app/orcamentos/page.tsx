@@ -8,6 +8,7 @@ import { AppShell } from "@/components/AppShell";
 import { ActionButton } from "@/components/ActionButton";
 import { StatusPill } from "@/components/StatusPill";
 import { currencyBRL } from "@/lib/format";
+import { buildProposalWhatsAppMessage, buildWhatsAppUrl } from "@/lib/proposalShare";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase/client";
 
 type QuoteItem = {
@@ -96,6 +97,7 @@ function formatQuantity(quantity: number, unit: string) {
 export default function BudgetsPage() {
   const [user, setUser] = useState<User | null>(null);
   const [quotes, setQuotes] = useState<Quote[]>([]);
+  const [professionalName, setProfessionalName] = useState("Obra Fechada");
   const [selectedQuoteId, setSelectedQuoteId] = useState("");
   const [message, setMessage] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -145,6 +147,18 @@ export default function BudgetsPage() {
       setQuotes(loadedQuotes);
       setSelectedQuoteId((current) => current || loadedQuotes[0]?.id || "");
     }
+
+    const { data: profileData, error: profileError } = await supabase
+      .from("profiles")
+      .select("professional_name")
+      .eq("user_id", currentUser.id)
+      .limit(1);
+
+    if (profileError) {
+      console.error("Erro ao carregar profissional para envio da proposta:", profileError);
+    }
+
+    setProfessionalName((profileData?.[0]?.professional_name as string | undefined) || "Obra Fechada");
 
     setIsLoading(false);
   }, []);
@@ -237,7 +251,7 @@ export default function BudgetsPage() {
     }
 
     setQuotes((current) => current.map((item) => (item.id === quote.id ? { ...item, public_token: token, public_link_enabled: enabled } : item)));
-    setMessage(enabled ? "Link público ativado." : "Link público desativado.");
+    setMessage(enabled ? "Link da proposta criado." : "Link público desativado.");
     setActionId("");
     return token;
   }
@@ -247,10 +261,59 @@ export default function BudgetsPage() {
     if (!token) return;
     try {
       await navigator.clipboard.writeText(getPublicUrl(token));
-      setMessage("Link da proposta copiado com sucesso.");
+      setMessage("Link copiado.");
     } catch (error) {
       console.error("Erro ao copiar link da proposta:", error);
       setMessage("Não foi possível copiar o link automaticamente. Tente novamente.");
+    }
+  }
+
+  async function ensurePublicLinkForShare(quote: Quote) {
+    if (quote.public_link_enabled && quote.public_token) return quote.public_token;
+    return updatePublicLink(quote, true);
+  }
+
+  async function getShareMessage(quote: Quote) {
+    const token = await ensurePublicLinkForShare(quote);
+    if (!token) return null;
+
+    return buildProposalWhatsAppMessage({
+      clientName: getClient(quote)?.name,
+      quoteCode: getQuoteCode(quote),
+      totalValue: quote.total_value,
+      validUntil: quote.valid_until,
+      publicUrl: getPublicUrl(token),
+      professionalName,
+    });
+  }
+
+  async function sendWhatsApp(quote: Quote) {
+    setActionId(`whatsapp-${quote.id}`);
+    try {
+      const shareMessage = await getShareMessage(quote);
+      if (!shareMessage) return;
+      const opened = window.open(buildWhatsAppUrl(getClient(quote)?.whatsapp, shareMessage), "_blank", "noopener,noreferrer");
+      if (!opened) setMessage("Não foi possível abrir o WhatsApp.");
+    } catch (error) {
+      console.error("Erro ao abrir WhatsApp:", error);
+      setMessage("Não foi possível abrir o WhatsApp.");
+    } finally {
+      setActionId("");
+    }
+  }
+
+  async function copyShareMessage(quote: Quote) {
+    setActionId(`message-${quote.id}`);
+    try {
+      const shareMessage = await getShareMessage(quote);
+      if (!shareMessage) return;
+      await navigator.clipboard.writeText(shareMessage);
+      setMessage("Mensagem copiada.");
+    } catch (error) {
+      console.error("Erro ao copiar mensagem da proposta:", error);
+      setMessage("Não foi possível copiar a mensagem agora.");
+    } finally {
+      setActionId("");
     }
   }
 
@@ -298,7 +361,8 @@ export default function BudgetsPage() {
               <div className="mt-4 grid grid-cols-2 gap-2 text-center text-xs font-black">
                 <Link href={`/orcamentos/${quote.id}`} className="rounded-xl bg-technical py-2 text-graphite">Abrir detalhes</Link>
                 <Link href={`/orcamentos/novo?orcamento=${quote.id}`} className="rounded-xl bg-technical py-2">Editar</Link>
-                <Link href={`/orcamentos/${quote.id}/proposta`} className="rounded-xl bg-warning py-2 text-graphite">Gerar PDF</Link>
+                <button type="button" onClick={() => sendWhatsApp(quote)} disabled={Boolean(actionId)} className="rounded-xl bg-warning py-2 text-graphite disabled:opacity-60">{actionId === `whatsapp-${quote.id}` ? "Preparando..." : "Enviar WhatsApp"}</button>
+                <Link href={`/orcamentos/${quote.id}/proposta`} className="rounded-xl bg-technical py-2 text-graphite">Gerar PDF</Link>
                 <button type="button" disabled={actionId === `delete-${quote.id}`} onClick={() => deleteQuote(quote.id)} className="rounded-xl bg-technical py-2 text-graphite disabled:opacity-60">{actionId === `delete-${quote.id}` ? "Excluindo..." : "Excluir"}</button>
               </div>
             </div>
@@ -359,8 +423,10 @@ export default function BudgetsPage() {
             </div>
 
             <div className="mt-5 grid grid-cols-2 gap-3 text-center text-sm font-black">
+              <button type="button" onClick={() => sendWhatsApp(selectedQuote)} disabled={Boolean(actionId)} className="col-span-2 rounded-2xl bg-warning px-4 py-3 text-graphite shadow-soft disabled:opacity-60">{actionId === `whatsapp-${selectedQuote.id}` ? "Preparando envio..." : "Enviar pelo WhatsApp"}</button>
               <Link href={`/orcamentos/novo?orcamento=${selectedQuote.id}`} className="rounded-2xl border border-black/10 bg-white px-4 py-3 text-graphite">Editar</Link>
-              <Link href={`/orcamentos/${selectedQuote.id}/proposta`} className="rounded-2xl bg-warning px-4 py-3 text-graphite shadow-soft">Gerar PDF</Link>
+              <Link href={`/orcamentos/${selectedQuote.id}/proposta`} className="rounded-2xl border border-black/10 bg-white px-4 py-3 text-graphite">Gerar PDF</Link>
+              <button type="button" onClick={() => copyShareMessage(selectedQuote)} disabled={Boolean(actionId)} className="rounded-2xl border border-black/10 bg-white px-4 py-3 text-graphite disabled:opacity-60">{actionId === `message-${selectedQuote.id}` ? "Copiando..." : "Copiar mensagem"}</button>
               <button type="button" onClick={() => copyPublicLink(selectedQuote)} disabled={actionId === `link-${selectedQuote.id}`} className="rounded-2xl border border-black/10 bg-white px-4 py-3 text-graphite disabled:opacity-60">{actionId === `link-${selectedQuote.id}` ? "Gerando..." : "Copiar link"}</button>
               <button type="button" onClick={() => updatePublicLink(selectedQuote, !selectedQuote.public_link_enabled)} disabled={actionId === `link-${selectedQuote.id}`} className="rounded-2xl border border-black/10 bg-white px-4 py-3 text-graphite disabled:opacity-60">{selectedQuote.public_link_enabled ? "Desativar link público" : "Ativar link público"}</button>
               <button type="button" onClick={() => deleteQuote(selectedQuote.id)} disabled={actionId === `delete-${selectedQuote.id}`} className="rounded-2xl border border-black/10 bg-white px-4 py-3 text-graphite disabled:opacity-60">{actionId === `delete-${selectedQuote.id}` ? "Excluindo..." : "Excluir"}</button>

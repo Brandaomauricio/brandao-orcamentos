@@ -7,6 +7,7 @@ import { AppHeader } from "@/components/AppHeader";
 import { AppShell } from "@/components/AppShell";
 import { StatusPill } from "@/components/StatusPill";
 import { currencyBRL } from "@/lib/format";
+import { buildProposalWhatsAppMessage, buildWhatsAppUrl } from "@/lib/proposalShare";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase/client";
 
 type QuoteItem = {
@@ -77,6 +78,7 @@ export default function BudgetDetailsPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const [quote, setQuote] = useState<Quote | null>(null);
+  const [professionalName, setProfessionalName] = useState("Obra Fechada");
   const [message, setMessage] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [action, setAction] = useState("");
@@ -128,6 +130,18 @@ export default function BudgetDetailsPage() {
     } else {
       setQuote(data as Quote);
     }
+
+    const { data: profileData, error: profileError } = await supabase
+      .from("profiles")
+      .select("professional_name")
+      .eq("user_id", userData.user.id)
+      .limit(1);
+
+    if (profileError) {
+      console.error("Erro ao carregar profissional para envio da proposta:", profileError);
+    }
+
+    setProfessionalName((profileData?.[0]?.professional_name as string | undefined) || "Obra Fechada");
 
     setIsLoading(false);
   }, [params.id]);
@@ -212,7 +226,7 @@ export default function BudgetDetailsPage() {
     }
 
     setQuote((current) => current ? { ...current, public_token: token, public_link_enabled: enabled } : current);
-    setMessage(enabled ? "Link público ativado." : "Link público desativado.");
+    setMessage(enabled ? "Link da proposta criado." : "Link público desativado.");
     setAction("");
     return token;
   }
@@ -223,10 +237,63 @@ export default function BudgetDetailsPage() {
     if (!token) return;
     try {
       await navigator.clipboard.writeText(publicUrl(token));
-      setMessage("Link da proposta copiado com sucesso.");
+      setMessage("Link copiado.");
     } catch (error) {
       console.error("Erro ao copiar link da proposta:", error);
       setMessage("Não foi possível copiar o link automaticamente. Tente novamente.");
+    }
+  }
+
+  async function ensurePublicLinkForShare() {
+    if (!quote) return null;
+    if (quote.public_link_enabled && quote.public_token) return quote.public_token;
+    return setPublicLink(true);
+  }
+
+  async function getShareMessage() {
+    if (!quote) return null;
+    const token = await ensurePublicLinkForShare();
+    if (!token) return null;
+
+    return buildProposalWhatsAppMessage({
+      clientName: client?.name,
+      quoteCode,
+      totalValue: quote.total_value,
+      validUntil: quote.valid_until,
+      publicUrl: publicUrl(token),
+      professionalName,
+    });
+  }
+
+  async function sendWhatsApp() {
+    if (!quote) return;
+    setAction("whatsapp");
+    try {
+      const shareMessage = await getShareMessage();
+      if (!shareMessage) return;
+      const opened = window.open(buildWhatsAppUrl(client?.whatsapp, shareMessage), "_blank", "noopener,noreferrer");
+      if (!opened) setMessage("Não foi possível abrir o WhatsApp.");
+    } catch (error) {
+      console.error("Erro ao abrir WhatsApp:", error);
+      setMessage("Não foi possível abrir o WhatsApp.");
+    } finally {
+      setAction("");
+    }
+  }
+
+  async function copyShareMessage() {
+    if (!quote) return;
+    setAction("message");
+    try {
+      const shareMessage = await getShareMessage();
+      if (!shareMessage) return;
+      await navigator.clipboard.writeText(shareMessage);
+      setMessage("Mensagem copiada.");
+    } catch (error) {
+      console.error("Erro ao copiar mensagem da proposta:", error);
+      setMessage("Não foi possível copiar a mensagem agora.");
+    } finally {
+      setAction("");
     }
   }
 
@@ -293,8 +360,10 @@ export default function BudgetDetailsPage() {
             <div className="mt-5 grid grid-cols-1 gap-3">
               <Link href="/orcamentos" className="block rounded-2xl border border-black/10 bg-white px-5 py-4 text-center text-sm font-black text-graphite">Voltar</Link>
               <Link href={`/orcamentos/novo?orcamento=${quote.id}`} className="block rounded-2xl border border-black/10 bg-white px-5 py-4 text-center text-sm font-black text-graphite">Editar orçamento</Link>
-              <Link href={`/orcamentos/${quote.id}/proposta`} className="block rounded-2xl bg-warning px-5 py-4 text-center text-sm font-black text-graphite shadow-soft">Gerar proposta/PDF</Link>
-              <button type="button" onClick={copyPublicLink} disabled={action === "link"} className="block rounded-2xl border border-black/10 bg-white px-5 py-4 text-center text-sm font-black text-graphite disabled:opacity-60">{action === "link" ? "Gerando link..." : "Copiar link da proposta"}</button>
+              <button type="button" onClick={sendWhatsApp} disabled={Boolean(action)} className="block rounded-2xl bg-warning px-5 py-4 text-center text-sm font-black text-graphite shadow-soft disabled:opacity-60">{action === "whatsapp" ? "Preparando envio..." : "Enviar pelo WhatsApp"}</button>
+              <Link href={`/orcamentos/${quote.id}/proposta`} className="block rounded-2xl border border-black/10 bg-white px-5 py-4 text-center text-sm font-black text-graphite">Gerar proposta/PDF</Link>
+              <button type="button" onClick={copyShareMessage} disabled={Boolean(action)} className="block rounded-2xl border border-black/10 bg-white px-5 py-4 text-center text-sm font-black text-graphite disabled:opacity-60">{action === "message" ? "Copiando..." : "Copiar mensagem"}</button>
+              <button type="button" onClick={copyPublicLink} disabled={action === "link"} className="block rounded-2xl border border-black/10 bg-white px-5 py-4 text-center text-sm font-black text-graphite disabled:opacity-60">{action === "link" ? "Gerando link..." : "Copiar link"}</button>
               <button type="button" onClick={() => setPublicLink(!quote.public_link_enabled)} disabled={action === "link"} className="block rounded-2xl border border-black/10 bg-white px-5 py-4 text-center text-sm font-black text-graphite disabled:opacity-60">{quote.public_link_enabled ? "Desativar link público" : "Ativar link público"}</button>
               <button type="button" onClick={deleteQuote} disabled={action === "delete"} className="block rounded-2xl border border-black/10 bg-white px-5 py-4 text-center text-sm font-black text-graphite disabled:opacity-60">{action === "delete" ? "Excluindo..." : "Excluir orçamento"}</button>
             </div>

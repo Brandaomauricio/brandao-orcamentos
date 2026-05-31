@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import { ProposalDocument, hasRealValue, type ProposalBudget, type ProposalClient, type ProposalProfile } from "@/components/ProposalDocument";
+import { buildProposalWhatsAppMessage, buildWhatsAppUrl } from "@/lib/proposalShare";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase/client";
 
 type BudgetWithRelations = ProposalBudget & {
@@ -11,6 +12,8 @@ type BudgetWithRelations = ProposalBudget & {
   client_email: string | null;
   client_address: string | null;
   work_address: string | null;
+  public_token: string | null;
+  public_link_enabled: boolean | null;
   clients: ProposalClient | ProposalClient[] | null;
 };
 
@@ -20,6 +23,7 @@ export default function PrintableProposalPage() {
   const [profile, setProfile] = useState<ProposalProfile>(null);
   const [message, setMessage] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [action, setAction] = useState("");
 
   const client = useMemo<ProposalClient>(() => {
     if (!budget) return null;
@@ -88,11 +92,134 @@ export default function PrintableProposalPage() {
     loadBudget();
   }, [loadBudget]);
 
+  function quoteCode() {
+    return budget?.proposal_number || budget?.id.slice(0, 8).toUpperCase() || "";
+  }
+
+  function publicUrl(token: string) {
+    return `${window.location.origin}/proposta/${token}`;
+  }
+
+  async function ensurePublicLink() {
+    if (!budget) return null;
+    if (budget.public_link_enabled && budget.public_token) return { token: budget.public_token, created: false };
+
+    const { data: userData, error: authError } = await supabase.auth.getUser();
+    if (authError) {
+      console.error("Erro ao verificar usuário antes de criar link público:", authError);
+      setMessage("Não foi possível verificar sua conta agora.");
+      return null;
+    }
+
+    if (!userData.user) {
+      setMessage("Entre na sua conta para criar o link da proposta.");
+      return null;
+    }
+
+    const token = budget.public_token || crypto.randomUUID();
+    const { error } = await supabase
+      .from("quotes")
+      .update({ public_token: token, public_link_enabled: true, updated_at: new Date().toISOString() })
+      .eq("id", budget.id)
+      .eq("user_id", userData.user.id);
+
+    if (error) {
+      console.error("Erro ao criar link público da proposta:", error);
+      setMessage("Não foi possível criar o link da proposta agora.");
+      return null;
+    }
+
+    setBudget((current) => current ? { ...current, public_token: token, public_link_enabled: true } : current);
+    setMessage("Link da proposta criado.");
+    return { token, created: true };
+  }
+
+  async function getShareMessage() {
+    if (!budget) return null;
+    const publicLink = await ensurePublicLink();
+    if (!publicLink) return null;
+
+    return buildProposalWhatsAppMessage({
+      clientName: client?.name,
+      quoteCode: quoteCode(),
+      totalValue: budget.total_value,
+      validUntil: budget.valid_until,
+      publicUrl: publicUrl(publicLink.token),
+      professionalName: profile?.professional_name,
+    });
+  }
+
+  async function sendWhatsApp() {
+    if (!budget) return;
+    setAction("whatsapp");
+    try {
+      const shareMessage = await getShareMessage();
+      if (!shareMessage) return;
+      const opened = window.open(buildWhatsAppUrl(client?.whatsapp, shareMessage), "_blank", "noopener,noreferrer");
+      if (!opened) setMessage("Não foi possível abrir o WhatsApp.");
+    } catch (error) {
+      console.error("Erro ao abrir WhatsApp:", error);
+      setMessage("Não foi possível abrir o WhatsApp.");
+    } finally {
+      setAction("");
+    }
+  }
+
+  async function copyMessage() {
+    setAction("message");
+    try {
+      const shareMessage = await getShareMessage();
+      if (!shareMessage) return;
+      await navigator.clipboard.writeText(shareMessage);
+      setMessage("Mensagem copiada.");
+    } catch (error) {
+      console.error("Erro ao copiar mensagem:", error);
+      setMessage("Não foi possível copiar a mensagem agora.");
+    } finally {
+      setAction("");
+    }
+  }
+
+  async function copyLink() {
+    setAction("copy-link");
+    try {
+      const publicLink = await ensurePublicLink();
+      if (!publicLink) return;
+      await navigator.clipboard.writeText(publicUrl(publicLink.token));
+      setMessage("Link copiado.");
+    } catch (error) {
+      console.error("Erro ao copiar link:", error);
+      setMessage("Não foi possível copiar o link agora.");
+    } finally {
+      setAction("");
+    }
+  }
+
   return (
     <main className="min-h-screen bg-technical px-4 py-5 text-graphite print:bg-white print:px-0 print:py-0">
       {isLoading ? <div className="mx-auto max-w-[794px] rounded-2xl bg-white p-4 text-sm font-black text-cement shadow-sm print:hidden">Carregando proposta...</div> : null}
       {message ? <div className="mx-auto max-w-[794px] rounded-2xl bg-white p-4 text-sm font-black text-wood shadow-sm print:hidden">{message}</div> : null}
-      {budget ? <ProposalDocument budget={budget} client={client} profile={profile} /> : null}
+      {budget ? (
+        <>
+          <section className="mx-auto mb-5 max-w-[794px] space-y-3 print:hidden">
+            <button type="button" onClick={sendWhatsApp} disabled={Boolean(action)} className="block w-full rounded-2xl bg-warning px-5 py-4 text-center text-sm font-black text-graphite shadow-soft disabled:opacity-60">
+              {action === "whatsapp" ? "Preparando envio..." : "Enviar pelo WhatsApp"}
+            </button>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <button type="button" onClick={copyMessage} disabled={Boolean(action)} className="block rounded-2xl border border-black/10 bg-white px-5 py-4 text-center text-sm font-black text-graphite disabled:opacity-60">
+                {action === "message" ? "Copiando..." : "Copiar mensagem"}
+              </button>
+              <button type="button" onClick={copyLink} disabled={Boolean(action)} className="block rounded-2xl border border-black/10 bg-white px-5 py-4 text-center text-sm font-black text-graphite disabled:opacity-60">
+                {action === "copy-link" ? "Copiando..." : "Copiar link"}
+              </button>
+            </div>
+            <button type="button" onClick={() => window.print()} className="block w-full rounded-2xl border border-black/10 bg-white px-5 py-4 text-center text-sm font-black text-graphite">
+              Imprimir / Salvar em PDF
+            </button>
+          </section>
+          <ProposalDocument budget={budget} client={client} profile={profile} showActions={false} />
+        </>
+      ) : null}
     </main>
   );
 }
