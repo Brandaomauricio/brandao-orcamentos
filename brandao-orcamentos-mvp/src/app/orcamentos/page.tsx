@@ -321,7 +321,7 @@ export default function BudgetsPage() {
   return (
     <AppShell>
       <AppHeader title="Orçamentos" subtitle="Acompanhe rascunhos, propostas enviadas, aprovações e PDFs." />
-      <section className="px-5">
+      <section className="px-4">
         <ActionButton href="/orcamentos/novo">+ Novo Orçamento</ActionButton>
 
         {!user && !isLoading ? (
@@ -338,7 +338,7 @@ export default function BudgetsPage() {
         {message ? <div className="mt-4 rounded-2xl bg-white p-4 text-sm font-black text-wood shadow-sm">{message}</div> : null}
         {isLoading ? <div className="mt-4 rounded-2xl bg-white p-4 text-sm font-black text-cement shadow-sm">Carregando orçamentos...</div> : null}
 
-        <div className="mt-5 space-y-3">
+        <div className="mt-4 space-y-3">
           {user && !isLoading && !filteredQuotes.length ? (
             <div className="card p-4 text-sm font-bold text-cement">Nenhum orçamento encontrado.</div>
           ) : null}
@@ -348,7 +348,7 @@ export default function BudgetsPage() {
               <button type="button" onClick={() => setSelectedQuoteId(quote.id)} className="block w-full text-left">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <h2 className="font-black text-graphite">{getClientName(quote)}</h2>
+                    <h2 className="text-lg font-black text-graphite">{getClientName(quote)}</h2>
                     <p className="mt-1 text-sm text-cement">
                       #{getQuoteCode(quote)} · {formatDate(quote.created_at)} · {quote.quote_items?.length ?? 0} serviços
                     </p>
@@ -356,15 +356,15 @@ export default function BudgetsPage() {
                   </div>
                   <StatusPill>{getStatusLabel(quote.status)}</StatusPill>
                 </div>
-                <p className="mt-3 text-xl font-black text-graphite">{currencyBRL(Number(quote.total_value ?? 0))}</p>
+                <p className="mt-3 text-2xl font-black text-graphite">{currencyBRL(Number(quote.total_value ?? 0))}</p>
               </button>
 
-              <div className="mt-4 grid grid-cols-2 gap-2 text-center text-xs font-black">
-                <Link href={`/orcamentos/${quote.id}`} className="rounded-xl bg-technical py-2 text-graphite">Abrir detalhes</Link>
-                <Link href={`/orcamentos/novo?orcamento=${quote.id}`} className="rounded-xl bg-technical py-2">Editar</Link>
-                <button type="button" onClick={() => sendWhatsApp(quote)} disabled={Boolean(actionId)} className="rounded-xl bg-warning py-2 text-graphite disabled:opacity-60">{actionId === `whatsapp-${quote.id}` ? "Preparando..." : "Enviar WhatsApp"}</button>
-                <Link href={`/orcamentos/${quote.id}/proposta`} className="rounded-xl bg-technical py-2 text-graphite">Gerar PDF</Link>
-                <button type="button" disabled={actionId === `delete-${quote.id}`} onClick={() => deleteQuote(quote.id)} className="rounded-xl bg-technical py-2 text-graphite disabled:opacity-60">{actionId === `delete-${quote.id}` ? "Excluindo..." : "Excluir"}</button>
+              <div className="mt-4 grid grid-cols-2 gap-2 text-center text-sm font-black">
+                <button type="button" onClick={() => sendWhatsApp(quote)} disabled={Boolean(actionId)} className="mobile-action mobile-action-primary col-span-2 disabled:opacity-60">{actionId === `whatsapp-${quote.id}` ? "Preparando..." : "Enviar WhatsApp"}</button>
+                <Link href={`/orcamentos/novo?orcamento=${quote.id}`} className="mobile-action mobile-action-strong">Editar</Link>
+                <Link href={`/orcamentos/${quote.id}/proposta`} className="mobile-action mobile-action-strong">Gerar PDF</Link>
+                <Link href={`/orcamentos/${quote.id}`} className="mobile-action bg-technical text-graphite">Detalhes</Link>
+                <button type="button" disabled={actionId === `delete-${quote.id}`} onClick={() => deleteQuote(quote.id)} className="mobile-action bg-technical text-graphite disabled:opacity-60">{actionId === `delete-${quote.id}` ? "Excluindo..." : "Excluir"}</button>
               </div>
             </div>
           ))}
@@ -423,15 +423,15 @@ export default function BudgetsPage() {
               <p className="mt-2"><strong className="text-graphite">Garantia:</strong> {selectedQuote.warranty_text || "A combinar"}</p>
             </div>
 
-            <div className="mt-5 grid grid-cols-2 gap-3 text-center text-sm font-black">
-              <button type="button" onClick={() => sendWhatsApp(selectedQuote)} disabled={Boolean(actionId)} className="col-span-2 rounded-2xl bg-warning px-4 py-3 text-graphite shadow-soft disabled:opacity-60">{actionId === `whatsapp-${selectedQuote.id}` ? "Preparando envio..." : "Enviar pelo WhatsApp"}</button>
-              <Link href={`/orcamentos/novo?orcamento=${selectedQuote.id}`} className="rounded-2xl border border-black/10 bg-white px-4 py-3 text-graphite">Editar</Link>
-              <Link href={`/orcamentos/${selectedQuote.id}/proposta`} className="rounded-2xl border border-black/10 bg-white px-4 py-3 text-graphite">Gerar PDF</Link>
-              <button type="button" onClick={() => copyShareMessage(selectedQuote)} disabled={Boolean(actionId)} className="rounded-2xl border border-black/10 bg-white px-4 py-3 text-graphite disabled:opacity-60">{actionId === `message-${selectedQuote.id}` ? "Copiando..." : "Copiar mensagem"}</button>
-              <button type="button" onClick={() => copyPublicLink(selectedQuote)} disabled={actionId === `link-${selectedQuote.id}`} className="rounded-2xl border border-black/10 bg-white px-4 py-3 text-graphite disabled:opacity-60">{actionId === `link-${selectedQuote.id}` ? "Gerando..." : "Copiar link"}</button>
-              <button type="button" onClick={() => updatePublicLink(selectedQuote, !selectedQuote.public_link_enabled)} disabled={actionId === `link-${selectedQuote.id}`} className="rounded-2xl border border-black/10 bg-white px-4 py-3 text-graphite disabled:opacity-60">{selectedQuote.public_link_enabled ? "Desativar link público" : "Ativar link público"}</button>
-              <button type="button" onClick={() => deleteQuote(selectedQuote.id)} disabled={actionId === `delete-${selectedQuote.id}`} className="rounded-2xl border border-black/10 bg-white px-4 py-3 text-graphite disabled:opacity-60">{actionId === `delete-${selectedQuote.id}` ? "Excluindo..." : "Excluir"}</button>
-              <Link href={`/orcamentos/${selectedQuote.id}`} className="rounded-2xl border border-black/10 bg-white px-4 py-3 text-graphite">Tela completa</Link>
+            <div className="mt-5 grid grid-cols-2 gap-2 text-center text-sm font-black">
+              <button type="button" onClick={() => sendWhatsApp(selectedQuote)} disabled={Boolean(actionId)} className="mobile-action mobile-action-primary col-span-2 disabled:opacity-60">{actionId === `whatsapp-${selectedQuote.id}` ? "Preparando envio..." : "Enviar pelo WhatsApp"}</button>
+              <Link href={`/orcamentos/novo?orcamento=${selectedQuote.id}`} className="mobile-action mobile-action-strong">Editar</Link>
+              <Link href={`/orcamentos/${selectedQuote.id}/proposta`} className="mobile-action mobile-action-strong">Gerar PDF</Link>
+              <button type="button" onClick={() => copyShareMessage(selectedQuote)} disabled={Boolean(actionId)} className="mobile-action border border-black/10 bg-white text-graphite disabled:opacity-60">{actionId === `message-${selectedQuote.id}` ? "Copiando..." : "Copiar mensagem"}</button>
+              <button type="button" onClick={() => copyPublicLink(selectedQuote)} disabled={actionId === `link-${selectedQuote.id}`} className="mobile-action border border-black/10 bg-white text-graphite disabled:opacity-60">{actionId === `link-${selectedQuote.id}` ? "Gerando..." : "Copiar link"}</button>
+              <button type="button" onClick={() => updatePublicLink(selectedQuote, !selectedQuote.public_link_enabled)} disabled={actionId === `link-${selectedQuote.id}`} className="mobile-action border border-black/10 bg-white text-graphite disabled:opacity-60">{selectedQuote.public_link_enabled ? "Desativar link" : "Ativar link"}</button>
+              <Link href={`/orcamentos/${selectedQuote.id}`} className="mobile-action border border-black/10 bg-white text-graphite">Tela completa</Link>
+              <button type="button" onClick={() => deleteQuote(selectedQuote.id)} disabled={actionId === `delete-${selectedQuote.id}`} className="mobile-action col-span-2 border border-black/10 bg-white text-graphite disabled:opacity-60">{actionId === `delete-${selectedQuote.id}` ? "Excluindo..." : "Excluir"}</button>
             </div>
           </section>
         ) : null}

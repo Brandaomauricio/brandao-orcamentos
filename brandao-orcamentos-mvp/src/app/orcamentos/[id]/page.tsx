@@ -301,7 +301,7 @@ export default function BudgetDetailsPage() {
   return (
     <AppShell>
       <AppHeader title="Detalhes do orçamento" subtitle="Confira cliente, serviços, status, valores e condições." />
-      <section className="px-5">
+      <section className="px-4">
         {isLoading ? <div className="card p-4 text-sm font-black text-cement">Carregando orçamento...</div> : null}
         {message ? <div className="rounded-2xl bg-white p-4 text-sm font-black text-wood shadow-sm">{message}</div> : null}
 
@@ -358,15 +358,15 @@ export default function BudgetDetailsPage() {
               <p className="mt-2 text-sm text-cement">Garantia: {quote.warranty_text || "A combinar"}</p>
             </div>
 
-            <div className="mt-5 grid grid-cols-1 gap-3">
-              <Link href="/orcamentos" className="block rounded-2xl border border-black/10 bg-white px-5 py-4 text-center text-sm font-black text-graphite">Voltar</Link>
-              <Link href={`/orcamentos/novo?orcamento=${quote.id}`} className="block rounded-2xl border border-black/10 bg-white px-5 py-4 text-center text-sm font-black text-graphite">Editar orçamento</Link>
-              <button type="button" onClick={sendWhatsApp} disabled={Boolean(action)} className="block rounded-2xl bg-warning px-5 py-4 text-center text-sm font-black text-graphite shadow-soft disabled:opacity-60">{action === "whatsapp" ? "Preparando envio..." : "Enviar pelo WhatsApp"}</button>
-              <Link href={`/orcamentos/${quote.id}/proposta`} className="block rounded-2xl border border-black/10 bg-white px-5 py-4 text-center text-sm font-black text-graphite">Gerar proposta/PDF</Link>
-              <button type="button" onClick={copyShareMessage} disabled={Boolean(action)} className="block rounded-2xl border border-black/10 bg-white px-5 py-4 text-center text-sm font-black text-graphite disabled:opacity-60">{action === "message" ? "Copiando..." : "Copiar mensagem"}</button>
-              <button type="button" onClick={copyPublicLink} disabled={action === "link"} className="block rounded-2xl border border-black/10 bg-white px-5 py-4 text-center text-sm font-black text-graphite disabled:opacity-60">{action === "link" ? "Gerando link..." : "Copiar link"}</button>
-              <button type="button" onClick={() => setPublicLink(!quote.public_link_enabled)} disabled={action === "link"} className="block rounded-2xl border border-black/10 bg-white px-5 py-4 text-center text-sm font-black text-graphite disabled:opacity-60">{quote.public_link_enabled ? "Desativar link público" : "Ativar link público"}</button>
-              <button type="button" onClick={deleteQuote} disabled={action === "delete"} className="block rounded-2xl border border-black/10 bg-white px-5 py-4 text-center text-sm font-black text-graphite disabled:opacity-60">{action === "delete" ? "Excluindo..." : "Excluir orçamento"}</button>
+            <div className="mt-5 grid grid-cols-2 gap-2">
+              <button type="button" onClick={sendWhatsApp} disabled={Boolean(action)} className="mobile-action mobile-action-primary col-span-2 text-center disabled:opacity-60">{action === "whatsapp" ? "Preparando envio..." : "Enviar pelo WhatsApp"}</button>
+              <Link href={`/orcamentos/novo?orcamento=${quote.id}`} className="mobile-action mobile-action-strong text-center">Editar</Link>
+              <Link href={`/orcamentos/${quote.id}/proposta`} className="mobile-action mobile-action-strong text-center">Gerar PDF</Link>
+              <button type="button" onClick={copyShareMessage} disabled={Boolean(action)} className="mobile-action border border-black/10 bg-white text-center text-graphite disabled:opacity-60">{action === "message" ? "Copiando..." : "Copiar mensagem"}</button>
+              <button type="button" onClick={copyPublicLink} disabled={action === "link"} className="mobile-action border border-black/10 bg-white text-center text-graphite disabled:opacity-60">{action === "link" ? "Gerando link..." : "Copiar link"}</button>
+              <button type="button" onClick={() => setPublicLink(!quote.public_link_enabled)} disabled={action === "link"} className="mobile-action border border-black/10 bg-white text-center text-graphite disabled:opacity-60">{quote.public_link_enabled ? "Desativar link" : "Ativar link"}</button>
+              <Link href="/orcamentos" className="mobile-action border border-black/10 bg-white text-center text-graphite">Voltar</Link>
+              <button type="button" onClick={deleteQuote} disabled={action === "delete"} className="mobile-action col-span-2 border border-black/10 bg-white text-center text-graphite disabled:opacity-60">{action === "delete" ? "Excluindo..." : "Excluir orçamento"}</button>
             </div>
           </>
         ) : null}
