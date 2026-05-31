@@ -1,4 +1,4 @@
-import { currencyBRL } from "@/lib/format";
+﻿import { currencyBRL } from "@/lib/format";
 
 type ProposalShareMessageInput = {
   clientName?: string | null;
@@ -12,7 +12,7 @@ type ProposalShareMessageInput = {
 function hasShareValue(value: unknown) {
   if (value === null || value === undefined) return false;
   const normalized = String(value).trim().toLowerCase();
-  return normalized !== "" && normalized !== "não informado" && normalized !== "nao informado" && normalized !== "-" && normalized !== "--";
+  return normalized !== "" && normalized !== "nÃ£o informado" && normalized !== "nao informado" && normalized !== "-" && normalized !== "--";
 }
 
 function cleanValue(value: unknown) {
@@ -40,20 +40,19 @@ export function buildProposalWhatsAppMessage({
 }: ProposalShareMessageInput) {
   const details = [
     cleanValue(clientName) ? `Cliente: ${cleanValue(clientName)}` : "",
-    cleanValue(quoteCode) ? `Código: ${cleanValue(quoteCode)}` : "",
-    totalValue !== null && totalValue !== undefined ? `Valor total: ${currencyBRL(Number(totalValue))}` : "",
+    cleanValue(quoteCode) ? `CÃ³digo: ${cleanValue(quoteCode)}` : "",
     formatProposalValidity(validUntil) ? `Validade: ${formatProposalValidity(validUntil)}` : "",
   ].filter(Boolean);
 
   return [
-    "Olá, segue sua proposta comercial.",
+    "OlÃ¡, segue sua proposta comercial.",
     "",
     ...details,
     "",
     "Acesse sua proposta pelo link:",
     publicUrl,
     "",
-    "Qualquer dúvida, fico à disposição.",
+    "Qualquer dÃºvida, fico Ã  disposiÃ§Ã£o.",
     cleanValue(professionalName) || "Obra Fechada",
   ].join("\n");
 }
