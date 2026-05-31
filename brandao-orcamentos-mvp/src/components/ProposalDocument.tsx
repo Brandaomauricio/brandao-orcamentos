@@ -133,14 +133,16 @@ export function ProposalDocument({ budget, client, profile, showActions = true }
   const customLogoUrl = realValue(profile?.logo_url);
 
   return (
-    <div className="proposal-page mx-auto max-w-[794px] bg-white p-7 shadow-soft print:max-w-none print:p-0 print:shadow-none">
+    <>
+    <div className="proposal-preview mx-auto">
+    <div className="proposal-page bg-white p-7 shadow-soft print:p-0 print:shadow-none">
       <header className="proposal-section overflow-hidden rounded-2xl border border-black/10">
         <div className="bg-graphite p-5 text-white">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex items-start justify-between gap-4">
             <div className="flex h-[105px] w-[170px] items-center justify-center rounded-xl bg-white p-3 [&_img]:h-full [&_img]:w-full [&_img]:object-contain">
               {customLogoUrl ? <img src={customLogoUrl} alt={professionalName} className="h-full w-full rounded-md object-contain" /> : <DefaultProposalLogo />}
             </div>
-            <div className="sm:text-right">
+            <div className="text-right">
               <p className="text-3xl font-black leading-tight text-white">Proposta Comercial</p>
               <h1 className="mt-2 text-lg font-black uppercase tracking-[0.16em] text-warning">{professionalName}</h1>
               <p className="mt-2 text-xs font-bold text-white/75">Documento técnico-comercial para execução de serviços</p>
@@ -148,12 +150,12 @@ export function ProposalDocument({ budget, client, profile, showActions = true }
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-0 border-t-4 border-warning bg-white text-sm sm:grid-cols-4">
-          <div className="border-b border-r border-black/10 p-4 sm:border-b-0">
+        <div className="grid grid-cols-4 gap-0 border-t-4 border-warning bg-white text-sm">
+          <div className="border-r border-black/10 p-4">
             <p className="text-xs font-black uppercase tracking-[0.18em] text-cement">Código</p>
             <p className="mt-1 font-black text-graphite">#{quoteCode}</p>
           </div>
-          <div className="border-b border-black/10 p-4 sm:border-b-0 sm:border-r">
+          <div className="border-r border-black/10 p-4">
             <p className="text-xs font-black uppercase tracking-[0.18em] text-cement">Emissão</p>
             <p className="mt-1 font-black text-graphite">{proposalDate}</p>
           </div>
@@ -168,7 +170,7 @@ export function ProposalDocument({ budget, client, profile, showActions = true }
         </div>
       </header>
 
-      <section className="proposal-section mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <section className="proposal-section mt-6 grid grid-cols-2 gap-4">
         <div className="rounded-2xl border border-black/10 bg-white p-5">
           <p className="text-xs font-black uppercase tracking-[0.2em] text-wood">Dados do profissional</p>
           <h2 className="mt-3 text-xl font-black text-graphite">{professionalName}</h2>
@@ -240,7 +242,7 @@ export function ProposalDocument({ budget, client, profile, showActions = true }
         </div>
       </section>
 
-      <section className="proposal-section mt-7 grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <section className="proposal-section mt-7 grid grid-cols-2 gap-4">
         <div className="rounded-2xl border border-black/10 p-5">
           <h2 className="text-lg font-black text-graphite">Condições comerciais</h2>
           <div className="mt-3 space-y-2 text-sm text-cement">
@@ -262,19 +264,22 @@ export function ProposalDocument({ budget, client, profile, showActions = true }
 
       <footer className="proposal-section mt-8 rounded-2xl border border-black/10 p-5">
         <p className="text-center text-sm font-bold leading-6 text-cement">{signatureText}</p>
-        <div className="mt-10 grid grid-cols-1 gap-10 text-center text-sm text-cement sm:grid-cols-2">
+        <div className="mt-10 grid grid-cols-2 gap-10 text-center text-sm text-cement">
           <div><div className="border-t border-black/40 pt-3">Assinatura do cliente</div></div>
           <div><div className="border-t border-black/40 pt-3">Assinatura do profissional</div></div>
         </div>
         <p className="mt-8 text-center text-xs font-black uppercase tracking-[0.2em] text-wood">{professionalName}</p>
       </footer>
 
-      {showActions ? (
-        <section className="mt-5 space-y-3 print:hidden">
-          <button type="button" onClick={() => window.print()} className="block w-full rounded-2xl bg-warning px-5 py-4 text-center text-sm font-black text-graphite shadow-soft">Imprimir / Salvar em PDF</button>
-          <Link href={`/orcamentos/${budget.id}`} className="block rounded-2xl border border-black/10 bg-white px-5 py-4 text-center text-sm font-black text-graphite">Voltar aos detalhes</Link>
-        </section>
-      ) : null}
     </div>
+    </div>
+
+    {showActions ? (
+      <section className="proposal-actions mx-auto mt-5 space-y-3 print:hidden">
+        <button type="button" onClick={() => window.print()} className="block w-full rounded-2xl bg-warning px-5 py-4 text-center text-sm font-black text-graphite shadow-soft">Imprimir / Salvar em PDF</button>
+        <Link href={`/orcamentos/${budget.id}`} className="block rounded-2xl border border-black/10 bg-white px-5 py-4 text-center text-sm font-black text-graphite">Voltar aos detalhes</Link>
+      </section>
+    ) : null}
+    </>
   );
 }

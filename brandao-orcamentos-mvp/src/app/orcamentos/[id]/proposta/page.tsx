@@ -202,7 +202,8 @@ export default function PrintableProposalPage() {
       {message ? <div className="mx-auto max-w-[794px] rounded-2xl bg-white p-4 text-sm font-black text-wood shadow-sm print:hidden">{message}</div> : null}
       {budget ? (
         <>
-          <section className="mx-auto mb-5 max-w-[794px] space-y-3 print:hidden">
+          <ProposalDocument budget={budget} client={client} profile={profile} showActions={false} />
+          <section className="proposal-actions mx-auto mt-5 space-y-3 print:hidden">
             <button type="button" onClick={sendWhatsApp} disabled={Boolean(action)} className="block w-full rounded-2xl bg-warning px-5 py-4 text-center text-sm font-black text-graphite shadow-soft disabled:opacity-60">
               {action === "whatsapp" ? "Preparando envio..." : "Enviar pelo WhatsApp"}
             </button>
@@ -218,7 +219,6 @@ export default function PrintableProposalPage() {
               Imprimir / Salvar em PDF
             </button>
           </section>
-          <ProposalDocument budget={budget} client={client} profile={profile} showActions={false} />
         </>
       ) : null}
     </main>

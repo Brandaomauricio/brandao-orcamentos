@@ -77,7 +77,7 @@ export default function PublicProposalPage() {
       {budget ? (
         <>
           <ProposalDocument budget={budget} client={client} profile={profile} showActions={false} />
-          <section className="mx-auto mt-5 max-w-[794px] print:hidden">
+          <section className="proposal-actions mx-auto mt-5 print:hidden">
             <button type="button" onClick={() => window.print()} className="block w-full rounded-2xl bg-warning px-5 py-4 text-center text-sm font-black text-graphite shadow-soft">
               Imprimir / Salvar em PDF
             </button>
