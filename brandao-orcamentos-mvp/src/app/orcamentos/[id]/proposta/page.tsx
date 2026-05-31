@@ -117,21 +117,24 @@ export default function PrintableProposalPage() {
     }
 
     const token = budget.public_token || crypto.randomUUID();
-    const { error } = await supabase
+    const { data: savedLink, error } = await supabase
       .from("quotes")
       .update({ public_token: token, public_link_enabled: true, updated_at: new Date().toISOString() })
       .eq("id", budget.id)
-      .eq("user_id", userData.user.id);
+      .eq("user_id", userData.user.id)
+      .select("public_token,public_link_enabled")
+      .single();
 
-    if (error) {
+    if (error || !savedLink?.public_token || !savedLink.public_link_enabled) {
       console.error("Erro ao criar link público da proposta:", error);
       setMessage("Não foi possível criar o link da proposta agora.");
       return null;
     }
 
-    setBudget((current) => current ? { ...current, public_token: token, public_link_enabled: true } : current);
+    const savedToken = String(savedLink.public_token);
+    setBudget((current) => current ? { ...current, public_token: savedToken, public_link_enabled: true } : current);
     setMessage("Link da proposta criado.");
-    return { token, created: true };
+    return { token: savedToken, created: true };
   }
 
   async function getShareMessage() {

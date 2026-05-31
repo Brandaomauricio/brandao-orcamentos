@@ -17,6 +17,12 @@ type PublicBudget = ProposalBudget & {
   clients: ProposalClient | ProposalClient[] | null;
 };
 
+type PublicProposalResult = {
+  quote: PublicBudget | null;
+  items: ProposalBudget["quote_items"];
+  profile: ProposalProfile;
+} | null;
+
 export default function PublicProposalPage() {
   const params = useParams<{ token: string }>();
   const [budget, setBudget] = useState<PublicBudget | null>(null);
@@ -44,44 +50,19 @@ export default function PublicProposalPage() {
     }
 
     const token = decodeURIComponent(params.token);
-    const { data, error } = await supabase
-      .from("quotes")
-      .select("*")
-      .eq("public_token", token)
-      .eq("public_link_enabled", true)
-      .maybeSingle();
+    const { data, error } = await supabase.rpc("get_public_proposal_by_token", { p_public_token: token });
+    const publicProposal = data as PublicProposalResult;
 
-    if (error || !data) {
+    if (error || !publicProposal?.quote) {
       if (error) console.error("Erro ao carregar proposta pública:", error);
       setMessage("Proposta não encontrada ou link desativado.");
       setIsLoading(false);
       return;
     }
 
-    const { data: itemsData, error: itemsError } = await supabase
-      .from("quote_items")
-      .select("id,service_name,description,unit,unit_price,quantity,total_price,sort_order")
-      .eq("quote_id", data.id)
-      .order("sort_order", { ascending: true });
-
-    if (itemsError) {
-      console.error("Erro ao carregar itens da proposta pública:", itemsError);
-    }
-
-    const loadedBudget = { ...(data as PublicBudget), clients: null, quote_items: itemsData ?? [] };
+    const loadedBudget = { ...publicProposal.quote, clients: null, quote_items: publicProposal.items ?? [] };
     setBudget(loadedBudget);
-
-    const { data: profileData, error: profileError } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("user_id", loadedBudget.user_id)
-      .limit(1);
-
-    if (profileError) {
-      console.error("Erro ao carregar perfil da proposta pública:", profileError);
-    }
-
-    setProfile(((profileData?.[0] as ProposalProfile | undefined) ?? null) as ProposalProfile);
+    setProfile(publicProposal.profile);
     setIsLoading(false);
   }, [params.token]);
 

@@ -237,23 +237,26 @@ export default function BudgetsPage() {
     if (!user) return null;
     setActionId(`link-${quote.id}`);
     const token = quote.public_token || crypto.randomUUID();
-    const { error } = await supabase
+    const { data: savedLink, error } = await supabase
       .from("quotes")
       .update({ public_token: token, public_link_enabled: enabled, updated_at: new Date().toISOString() })
       .eq("id", quote.id)
-      .eq("user_id", user.id);
+      .eq("user_id", user.id)
+      .select("public_token,public_link_enabled")
+      .single();
 
-    if (error) {
+    if (error || !savedLink?.public_token || savedLink.public_link_enabled !== enabled) {
       console.error("Erro ao atualizar link público da proposta:", error);
       setMessage("Não foi possível atualizar o link da proposta agora.");
       setActionId("");
       return null;
     }
 
-    setQuotes((current) => current.map((item) => (item.id === quote.id ? { ...item, public_token: token, public_link_enabled: enabled } : item)));
+    const savedToken = String(savedLink.public_token);
+    setQuotes((current) => current.map((item) => (item.id === quote.id ? { ...item, public_token: savedToken, public_link_enabled: enabled } : item)));
     setMessage(enabled ? "Link da proposta criado." : "Link público desativado.");
     setActionId("");
-    return token;
+    return savedToken;
   }
 
   async function copyPublicLink(quote: Quote) {
