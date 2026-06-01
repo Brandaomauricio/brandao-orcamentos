@@ -91,6 +91,10 @@ button:disabled {
   padding: 15px 16px;
   font-size: 16px;
   font-weight: 900;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
 }
 
 .mobile-action-primary {
@@ -100,9 +104,10 @@ button:disabled {
 }
 
 .mobile-action-strong {
-  background: #111111;
-  color: #F2C94C;
-  box-shadow: 0 10px 24px rgba(17,17,17,0.12);
+  background: #fff4c2;
+  color: #111111;
+  border: 1px solid rgba(17,17,17,0.1);
+  box-shadow: 0 8px 18px rgba(17,17,17,0.08);
 }
 
 @media (min-width: 768px) {
@@ -174,12 +179,13 @@ button:disabled {
   display: flex;
   justify-content: center;
   overflow: visible;
+  margin-bottom: 28px;
 }
 
 .proposal-page {
   width: 794px;
   min-width: 794px;
-  min-height: 1123px;
+  min-height: 1320px;
   color: #111111;
   transform-origin: top center;
 }
@@ -187,11 +193,12 @@ button:disabled {
 .proposal-actions {
   width: 794px;
   max-width: calc(100vw - 32px);
+  margin-top: 24px;
 }
 
 @media (max-width: 840px) {
   .proposal-preview {
-    height: 1056px;
+    height: 1290px;
   }
 
   .proposal-page {
@@ -201,7 +208,7 @@ button:disabled {
 
 @media (max-width: 760px) {
   .proposal-preview {
-    height: 966px;
+    height: 1185px;
   }
 
   .proposal-page {
@@ -211,7 +218,7 @@ button:disabled {
 
 @media (max-width: 680px) {
   .proposal-preview {
-    height: 876px;
+    height: 1080px;
   }
 
   .proposal-page {
@@ -221,7 +228,7 @@ button:disabled {
 
 @media (max-width: 600px) {
   .proposal-preview {
-    height: 775px;
+    height: 960px;
   }
 
   .proposal-page {
@@ -231,7 +238,7 @@ button:disabled {
 
 @media (max-width: 520px) {
   .proposal-preview {
-    height: 674px;
+    height: 840px;
   }
 
   .proposal-page {
@@ -241,7 +248,7 @@ button:disabled {
 
 @media (max-width: 460px) {
   .proposal-preview {
-    height: 562px;
+    height: 720px;
   }
 
   .proposal-page {
@@ -251,7 +258,7 @@ button:disabled {
 
 @media (max-width: 420px) {
   .proposal-preview {
-    height: 506px;
+    height: 650px;
   }
 
   .proposal-page {
@@ -261,7 +268,7 @@ button:disabled {
 
 @media (max-width: 380px) {
   .proposal-preview {
-    height: 461px;
+    height: 590px;
   }
 
   .proposal-page {
@@ -271,7 +278,7 @@ button:disabled {
 
 @media (max-width: 340px) {
   .proposal-preview {
-    height: 428px;
+    height: 550px;
   }
 
   .proposal-page {
@@ -300,6 +307,11 @@ button:disabled {
   .proposal-preview {
     display: block;
     height: auto !important;
+    margin-bottom: 0 !important;
+  }
+
+  .proposal-actions {
+    display: none !important;
   }
 
   .proposal-section {
