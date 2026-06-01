@@ -9,8 +9,8 @@ type ActionButtonProps = {
 export function ActionButton({ href, children, variant = "primary" }: ActionButtonProps) {
   const classes =
     variant === "primary"
-      ? "mobile-action mobile-action-primary block text-center"
-      : "mobile-action block border border-black/10 bg-white text-center text-graphite";
+      ? "mobile-action mobile-action-primary mx-auto w-full max-w-full text-center"
+      : "mobile-action mx-auto w-full max-w-full border border-black/10 bg-white text-center text-graphite";
 
   if (href) return <Link href={href} className={classes}>{children}</Link>;
 
