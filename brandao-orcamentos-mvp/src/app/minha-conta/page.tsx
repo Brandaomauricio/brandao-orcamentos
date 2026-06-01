@@ -726,8 +726,8 @@ export default function AccountPage() {
           ) : activeSection === "plano" ? (
             <div>
               <p className="text-sm font-black uppercase tracking-[0.14em] text-wood">Plano atual</p>
-              <h2 className="mt-1 text-xl font-black text-graphite">{currentPlan === "pro" ? "Pró" : currentPlan === "aluno" ? "Aluno" : "Grátis"}</h2>
-              <p className="mt-2 text-sm leading-6 text-cement">Pagamento e bloqueio de recursos serão implementados em uma próxima versão.</p>
+              <h2 className="mt-1 text-xl font-black text-graphite">{currentPlan === "pro" ? "Pró" : "Free"}</h2>
+              <p className="mt-2 text-sm leading-6 text-cement">O Plano Free tem limites mensais. O Plano Pró libera orçamentos, clientes e recursos profissionais sem limite interno.</p>
               <Link href="/planos" className="mt-4 block rounded-2xl bg-warning px-5 py-4 text-center text-sm font-black text-graphite shadow-soft">
                 Ver planos
               </Link>

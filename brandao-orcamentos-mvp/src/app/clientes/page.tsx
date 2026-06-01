@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import type { User } from "@supabase/supabase-js";
 import { AppHeader } from "@/components/AppHeader";
 import { AppShell } from "@/components/AppShell";
+import { FREE_LIMIT_MESSAGE, canCreateClient } from "@/lib/plans";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase/client";
 
 type Client = {
@@ -120,6 +121,15 @@ export default function ClientsPage() {
 
     setIsSaving(true);
     setMessage("");
+
+    if (!editingClientId) {
+      const limit = await canCreateClient(user.id);
+      if (!limit.allowed) {
+        setMessage(FREE_LIMIT_MESSAGE);
+        setIsSaving(false);
+        return;
+      }
+    }
 
     const query = editingClientId
       ? supabase

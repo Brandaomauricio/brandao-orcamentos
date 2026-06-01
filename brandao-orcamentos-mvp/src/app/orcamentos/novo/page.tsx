@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { AppHeader } from "@/components/AppHeader";
 import { AppShell } from "@/components/AppShell";
 import { currencyBRL } from "@/lib/format";
+import { FREE_LIMIT_MESSAGE, canCreateClient, canCreateQuoteThisMonth } from "@/lib/plans";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase/client";
 import Link from "next/link";
 
@@ -441,6 +442,12 @@ function NewBudgetContent() {
       return null;
     }
 
+    const clientLimit = await canCreateClient(userId);
+    if (!clientLimit.allowed) {
+      setMessage(FREE_LIMIT_MESSAGE);
+      return null;
+    }
+
     const { data, error } = await supabase
       .from("clients")
       .insert({
@@ -481,6 +488,14 @@ function NewBudgetContent() {
       return null;
     }
     const userId = userData.user.id;
+
+    if (!savedBudgetId) {
+      const quoteLimit = await canCreateQuoteThisMonth(userId);
+      if (!quoteLimit.allowed) {
+        setMessage(FREE_LIMIT_MESSAGE);
+        return null;
+      }
+    }
 
     if (!quoteItems.length) {
       setMessage("Adicione pelo menos um serviço ao orçamento antes de salvar.");
