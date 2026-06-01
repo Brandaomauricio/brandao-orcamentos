@@ -24,6 +24,8 @@ export type ProposalProfile = {
   responsible_name: string | null;
   whatsapp: string | null;
   email: string | null;
+  instagram?: string | null;
+  address?: string | null;
   city: string | null;
   state: string | null;
   city_state?: string | null;
@@ -178,6 +180,8 @@ export function ProposalDocument({ budget, client, profile, showActions = true }
             <FieldRow label="Responsável" value={profile?.responsible_name} />
             <FieldRow label="WhatsApp" value={profile?.whatsapp} />
             <FieldRow label="E-mail" value={profile?.email} />
+            <FieldRow label="Instagram/site" value={profile?.instagram} />
+            <FieldRow label="Endereço" value={profile?.address} />
             <FieldRow label="Cidade/UF" value={professionalLocation} />
             <FieldRow label="Documento" value={professionalDocument} withBorder={false} />
           </dl>

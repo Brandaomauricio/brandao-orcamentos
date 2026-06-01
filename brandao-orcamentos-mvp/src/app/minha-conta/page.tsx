@@ -12,6 +12,8 @@ type ProfileForm = {
   responsible_name: string;
   whatsapp: string;
   email: string;
+  instagram: string;
+  address: string;
   city: string;
   state: string;
   document_number: string;
@@ -47,6 +49,8 @@ const emptyProfile: ProfileForm = {
   responsible_name: "",
   whatsapp: "",
   email: "",
+  instagram: "",
+  address: "",
   city: "",
   state: "",
   document_number: "",
@@ -132,6 +136,8 @@ export default function AccountPage() {
       responsible_name: valueOrEmpty(profile?.responsible_name),
       whatsapp: valueOrEmpty(profile?.whatsapp),
       email: valueOrEmpty(profile?.email),
+      instagram: valueOrEmpty(profile?.instagram),
+      address: valueOrEmpty(profile?.address),
       city: valueOrEmpty(profile?.city || fallbackLocation.city),
       state: valueOrEmpty(profile?.state || fallbackLocation.state),
       document_number: valueOrEmpty(profile?.document_number || profile?.document),
@@ -200,6 +206,8 @@ export default function AccountPage() {
       responsible_name: trimToNull(form.responsible_name),
       whatsapp: form.whatsapp.trim() || "Não informado",
       email: trimToNull(form.email),
+      instagram: trimToNull(form.instagram),
+      address: trimToNull(form.address),
       city,
       state,
       city_state: `${city}/${state}`,
@@ -372,6 +380,8 @@ export default function AccountPage() {
       responsible_name: trimToNull(form.responsible_name),
       whatsapp: form.whatsapp.trim() || "Não informado",
       email: trimToNull(form.email),
+      instagram: trimToNull(form.instagram),
+      address: trimToNull(form.address),
       city,
       state,
       city_state: `${city}/${state}`,
@@ -390,6 +400,8 @@ export default function AccountPage() {
       responsible_name: trimToNull(form.responsible_name),
       whatsapp: form.whatsapp.trim() || "Não informado",
       email: trimToNull(form.email),
+      instagram: trimToNull(form.instagram),
+      address: trimToNull(form.address),
       city,
       state,
       city_state: `${city}/${state}`,
@@ -540,6 +552,16 @@ export default function AccountPage() {
               <label className="block">
                 <span className="label block">E-mail</span>
                 <input className="input" type="email" value={form.email} onChange={(event) => updateField("email", event.target.value)} placeholder="contato@empresa.com.br" />
+              </label>
+
+              <label className="block">
+                <span className="label block">Instagram ou site</span>
+                <input className="input" value={form.instagram} onChange={(event) => updateField("instagram", event.target.value)} placeholder="@suaempresa ou site.com.br" />
+              </label>
+
+              <label className="block">
+                <span className="label block">Endereço profissional</span>
+                <input className="input" value={form.address} onChange={(event) => updateField("address", event.target.value)} placeholder="Rua, número, bairro" />
               </label>
 
               <div className="grid grid-cols-[1fr_92px] gap-3">
