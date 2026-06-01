@@ -7,6 +7,8 @@ import { AppShell } from "@/components/AppShell";
 import { FREE_CLIENTS_LIMIT, FREE_MONTHLY_QUOTES_LIMIT, normalizePlan, type AppPlan } from "@/lib/plans";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase/client";
 
+const ADMIN_WHATSAPP = "5567992323688";
+
 const planCards: Array<{
   key: AppPlan;
   name: string;
@@ -19,31 +21,31 @@ const planCards: Array<{
     key: "free",
     name: "Plano Free",
     price: "R$ 0",
-    label: "Para começar",
+    label: "Para comecar",
     description: "Estrutura essencial para testar o app e organizar os primeiros atendimentos.",
     features: [
-      `Até ${FREE_MONTHLY_QUOTES_LIMIT} orçamentos por mês`,
-      `Até ${FREE_CLIENTS_LIMIT} clientes cadastrados`,
-      "PDF básico",
-      "Agenda básica",
-      "Modelos comerciais básicos",
-      "Sem recursos avançados futuros",
+      `Ate ${FREE_MONTHLY_QUOTES_LIMIT} orcamentos por mes`,
+      `Ate ${FREE_CLIENTS_LIMIT} clientes cadastrados`,
+      "PDF basico",
+      "Agenda basica",
+      "Modelos comerciais basicos",
+      "Sem recursos avancados futuros",
     ],
   },
   {
     key: "pro",
-    name: "Plano Pró",
-    price: "Em breve",
+    name: "Plano Pro",
+    price: "Ativacao manual",
     label: "Profissional",
     description: "Para usar o Obra Fechada no dia a dia, sem limites operacionais.",
     features: [
-      "Orçamentos ilimitados",
+      "Orcamentos ilimitados",
       "Clientes ilimitados",
       "PDF profissional",
       "Envio pelo WhatsApp",
-      "Link público da proposta",
+      "Link publico da proposta",
       "Modelos comerciais completos",
-      "Serviços salvos",
+      "Servicos salvos",
       "Agenda completa",
       "Recursos futuros liberados",
     ],
@@ -51,24 +53,22 @@ const planCards: Array<{
 ];
 
 function planName(plan: AppPlan) {
-  return plan === "pro" ? "Pró" : "Free";
+  return plan === "pro" ? "Pro" : "Free";
 }
 
 export default function PlansPage() {
   const [user, setUser] = useState<User | null>(null);
   const [currentPlan, setCurrentPlan] = useState<AppPlan>("free");
-  const [hasProfile, setHasProfile] = useState(false);
   const [message, setMessage] = useState("");
-  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (!isSupabaseConfigured) {
-      setMessage("A conexão com o Supabase ainda não está configurada neste ambiente.");
+      setMessage("A conexao com o Supabase ainda nao esta configurada neste ambiente.");
       return;
     }
 
     supabase.auth.getUser().then(async ({ data, error }) => {
-      if (error) console.error("Erro ao verificar usuário em planos:", error);
+      if (error) console.error("Erro ao verificar usuario em planos:", error);
       setUser(data.user);
       if (!data.user) return;
 
@@ -79,60 +79,32 @@ export default function PlansPage() {
         .limit(1);
 
       if (profileError) console.error("Erro ao carregar plano:", profileError);
-      setHasProfile(Boolean(profile?.[0]));
       setCurrentPlan(normalizePlan(profile?.[0]?.current_plan));
     });
   }, []);
 
-  async function selectPlan(plan: AppPlan) {
+  function requestProPlan() {
     if (!user) {
-      setMessage("Entre na sua conta para selecionar um plano.");
+      setMessage("Entre na sua conta para solicitar a ativacao do Plano Pro.");
       return;
     }
 
-    if (currentPlan === plan) return;
-
-    setIsSaving(true);
-    setMessage("");
-
-    const payload = {
-      id: user.id,
-      user_id: user.id,
-      professional_name: "Obra Fechada",
-      whatsapp: "Não informado",
-      city: "Não informado",
-      state: "BR",
-      current_plan: plan,
-      updated_at: new Date().toISOString(),
-    };
-
-    const { error } = hasProfile
-      ? await supabase.from("profiles").update({ current_plan: plan, updated_at: payload.updated_at }).eq("user_id", user.id)
-      : await supabase.from("profiles").insert(payload);
-
-    if (error) {
-      console.error("Erro ao salvar plano:", error);
-      setMessage("Não foi possível atualizar o plano agora.");
-    } else {
-      setCurrentPlan(plan);
-      setHasProfile(true);
-      setMessage(plan === "pro" ? "Plano Pró ativado em modo interno. Pagamento será conectado em uma próxima etapa." : "Plano Free ativado.");
-    }
-
-    setIsSaving(false);
+    const text = `Ola, quero ativar o Plano Pro do app Obra Fechada. Meu e-mail de cadastro e: ${user.email || "nao informado"}.`;
+    const opened = window.open(`https://wa.me/${ADMIN_WHATSAPP}?text=${encodeURIComponent(text)}`, "_blank", "noopener,noreferrer");
+    if (!opened) setMessage("Nao foi possivel abrir o WhatsApp. Tente novamente em instantes.");
   }
 
   return (
     <AppShell>
-      <AppHeader title="Planos" subtitle="Compare o Free e o Pró. Pagamento ainda não está conectado." />
+      <AppHeader title="Planos" subtitle="Compare o Free e o Pro. A ativacao do Pro e manual por enquanto." />
       <section className="space-y-4 px-5">
         <div className="card p-4">
           <p className="text-sm font-black uppercase tracking-[0.14em] text-wood">Plano atual</p>
           <h2 className="mt-1 text-2xl font-black text-graphite">{planName(currentPlan)}</h2>
           <p className="mt-2 text-sm leading-6 text-cement">
             {currentPlan === "pro"
-              ? "Sua conta está sem limites de orçamentos e clientes."
-              : `Sua conta gratuita permite ${FREE_MONTHLY_QUOTES_LIMIT} orçamentos por mês e ${FREE_CLIENTS_LIMIT} clientes cadastrados.`}
+              ? "Sua conta esta sem limites de orcamentos e clientes."
+              : `Sua conta gratuita permite ${FREE_MONTHLY_QUOTES_LIMIT} orcamentos por mes e ${FREE_CLIENTS_LIMIT} clientes cadastrados.`}
           </p>
         </div>
 
@@ -141,6 +113,7 @@ export default function PlansPage() {
         <div className="grid grid-cols-1 gap-4">
           {planCards.map((plan) => {
             const isCurrent = currentPlan === plan.key;
+            const isProRequest = plan.key === "pro" && !isCurrent;
             return (
               <div key={plan.key} className={`card overflow-hidden p-5 ${isCurrent ? "border-2 border-warning" : ""}`}>
                 <div className="flex items-start justify-between gap-3">
@@ -158,13 +131,13 @@ export default function PlansPage() {
                 </ul>
                 <button
                   type="button"
-                  disabled={isSaving || isCurrent}
-                  onClick={() => selectPlan(plan.key)}
-                  className={isCurrent
-                    ? "mt-5 block w-full rounded-2xl border border-black/10 bg-white px-5 py-4 text-center text-sm font-black text-graphite disabled:opacity-100"
-                    : "mt-5 block w-full rounded-2xl bg-warning px-5 py-4 text-center text-sm font-black text-graphite shadow-soft disabled:opacity-60"}
+                  disabled={!isProRequest}
+                  onClick={isProRequest ? requestProPlan : undefined}
+                  className={isProRequest
+                    ? "mt-5 block w-full rounded-2xl bg-warning px-5 py-4 text-center text-sm font-black text-graphite shadow-soft"
+                    : "mt-5 block w-full rounded-2xl border border-black/10 bg-white px-5 py-4 text-center text-sm font-black text-graphite disabled:opacity-100"}
                 >
-                  {isSaving ? "Salvando..." : isCurrent ? "Estou no plano atual" : plan.key === "pro" ? "Quero o Plano Pró" : "Usar Plano Free"}
+                  {isCurrent ? "Estou no plano atual" : plan.key === "pro" ? "Quero o Plano Pro" : "Plano gratuito"}
                 </button>
               </div>
             );
