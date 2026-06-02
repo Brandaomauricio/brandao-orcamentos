@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { AppHeader } from "@/components/AppHeader";
 import { AppShell } from "@/components/AppShell";
 import { currencyBRL } from "@/lib/format";
-import { FREE_LIMIT_MESSAGE, canCreateClient, canCreateQuoteThisMonth } from "@/lib/plans";
+import { canCreateClient, canCreateQuoteThisMonth } from "@/lib/plans";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase/client";
 import Link from "next/link";
 
@@ -444,7 +444,7 @@ function NewBudgetContent() {
 
     const clientLimit = await canCreateClient(userId);
     if (!clientLimit.allowed) {
-      setMessage(FREE_LIMIT_MESSAGE);
+      setMessage(clientLimit.message);
       return null;
     }
 
@@ -492,7 +492,7 @@ function NewBudgetContent() {
     if (!savedBudgetId) {
       const quoteLimit = await canCreateQuoteThisMonth(userId);
       if (!quoteLimit.allowed) {
-        setMessage(FREE_LIMIT_MESSAGE);
+        setMessage(quoteLimit.message);
         return null;
       }
     }
