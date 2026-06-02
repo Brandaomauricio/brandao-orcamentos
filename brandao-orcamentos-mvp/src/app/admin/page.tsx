@@ -8,7 +8,7 @@ import { AppShell } from "@/components/AppShell";
 import { normalizePlan, type AppPlan } from "@/lib/plans";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase/client";
 
-const ADMIN_EMAILS = ["brandaopm14@gmail.com", "naobrapodcast@gmail.com"];
+const ADMIN_EMAILS = ["brandaopm14@gmail.com", "naobrapodcast@gmail.com", "brandao14@gmail.com"];
 
 type AdminProfile = {
   profile_id: string;
@@ -21,7 +21,7 @@ type AdminProfile = {
 };
 
 function isAdminEmail(email?: string | null) {
-  return Boolean(email && ADMIN_EMAILS.includes(email.toLowerCase()));
+  return Boolean(email && ADMIN_EMAILS.includes(email.trim().toLowerCase()));
 }
 
 function planLabel(plan?: string | null) {
@@ -39,6 +39,7 @@ export default function AdminPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [actionUserId, setActionUserId] = useState("");
 
+  const detectedEmail = user?.email?.trim().toLowerCase() || "nenhum e-mail detectado";
   const isAdmin = isAdminEmail(user?.email);
 
   const loadProfiles = useCallback(async () => {
@@ -118,8 +119,8 @@ export default function AdminPage() {
       <section className="space-y-4 px-5">
         {!user && !isLoading ? (
           <div className="card p-4">
-            <h2 className="text-lg font-black text-graphite">Acesso restrito</h2>
-            <p className="mt-1 text-sm text-cement">Entre com uma conta de administrador para abrir este painel.</p>
+            <h2 className="text-lg font-black text-graphite">Você precisa entrar na sua conta para acessar o painel admin.</h2>
+            <p className="mt-1 text-sm text-cement">Use uma conta autorizada para abrir este painel.</p>
             <Link href="/login" className="mt-4 block rounded-2xl bg-warning px-5 py-4 text-center text-sm font-black text-graphite shadow-soft">
               Entrar
             </Link>
@@ -129,7 +130,15 @@ export default function AdminPage() {
         {user && !isAdmin ? (
           <div className="card p-4">
             <h2 className="text-lg font-black text-graphite">Acesso restrito ao administrador.</h2>
-            <p className="mt-1 text-sm text-cement">Esta conta nao tem permissao para alterar planos.</p>
+            <p className="mt-3 rounded-2xl bg-technical p-3 text-sm font-black text-graphite">E-mail logado: {detectedEmail}</p>
+            <div className="mt-3 rounded-2xl bg-white p-3 text-sm text-cement ring-1 ring-black/10">
+              <p className="font-black text-graphite">Administradores permitidos:</p>
+              <ul className="mt-2 space-y-1">
+                {ADMIN_EMAILS.map((email) => (
+                  <li key={email}>{email}</li>
+                ))}
+              </ul>
+            </div>
           </div>
         ) : null}
 
