@@ -96,7 +96,7 @@ export default function AdminPage() {
     }
 
     setIsLoading(true);
-    const { data, error } = await supabase.rpc("admin_list_profiles");
+    const { data, error } = await supabase.rpc("admin_list_profiles_v2");
 
     if (error) {
       console.error("Erro ao carregar usuarios no admin:", error);
@@ -134,6 +134,11 @@ export default function AdminPage() {
   async function runAdminAction(profile: AdminProfile, action: AdminAction) {
     if (!isAdmin) {
       setMessage("Acesso restrito ao administrador.");
+      return;
+    }
+
+    if (!profile.user_id) {
+      setMessage("Usuario sem ID vinculado. Nao e possivel alterar plano.");
       return;
     }
 
@@ -221,6 +226,7 @@ export default function AdminPage() {
                     </div>
 
                     <div className="mt-3 rounded-2xl bg-technical p-3 text-sm text-cement">
+                      {!profile.user_id ? <p className="mb-2 font-black text-wood">Usuario sem ID vinculado. Nao e possivel alterar plano.</p> : null}
                       <p><strong className="text-graphite">Plano atual:</strong> {planLabel(currentPlan)}</p>
                       <p className="mt-1"><strong className="text-graphite">Status:</strong> {statusLabel(currentStatus, currentPlan)}</p>
                       <p className="mt-1"><strong className="text-graphite">Situação:</strong> {situation}</p>
@@ -231,19 +237,19 @@ export default function AdminPage() {
                     </div>
 
                     <div className="mt-4 grid grid-cols-1 gap-3">
-                      <button type="button" onClick={() => runAdminAction(profile, "activate_30")} disabled={Boolean(actionKey)} className="block w-full rounded-2xl bg-warning px-5 py-4 text-center text-sm font-black text-graphite shadow-soft disabled:opacity-50">
+                      <button type="button" onClick={() => runAdminAction(profile, "activate_30")} disabled={Boolean(actionKey) || !profile.user_id} className="block w-full rounded-2xl bg-warning px-5 py-4 text-center text-sm font-black text-graphite shadow-soft disabled:opacity-50">
                         {actionKey === `${profile.user_id}-activate_30` ? "Atualizando..." : "Ativar/Renovar Pro por 30 dias"}
                       </button>
-                      <button type="button" onClick={() => runAdminAction(profile, "activate_90")} disabled={Boolean(actionKey)} className="block w-full rounded-2xl bg-warning px-5 py-4 text-center text-sm font-black text-graphite shadow-soft disabled:opacity-50">
+                      <button type="button" onClick={() => runAdminAction(profile, "activate_90")} disabled={Boolean(actionKey) || !profile.user_id} className="block w-full rounded-2xl bg-warning px-5 py-4 text-center text-sm font-black text-graphite shadow-soft disabled:opacity-50">
                         {actionKey === `${profile.user_id}-activate_90` ? "Atualizando..." : "Ativar/Renovar Pro por 90 dias"}
                       </button>
-                      <button type="button" onClick={() => runAdminAction(profile, "mark_past_due")} disabled={Boolean(actionKey)} className="block w-full rounded-2xl border border-wood/30 bg-white px-5 py-4 text-center text-sm font-black text-graphite disabled:opacity-50">
+                      <button type="button" onClick={() => runAdminAction(profile, "mark_past_due")} disabled={Boolean(actionKey) || !profile.user_id} className="block w-full rounded-2xl border border-wood/30 bg-white px-5 py-4 text-center text-sm font-black text-graphite disabled:opacity-50">
                         Marcar como vencido
                       </button>
-                      <button type="button" onClick={() => runAdminAction(profile, "block")} disabled={Boolean(actionKey)} className="block w-full rounded-2xl border border-black/10 bg-white px-5 py-4 text-center text-sm font-black text-graphite disabled:opacity-50">
+                      <button type="button" onClick={() => runAdminAction(profile, "block")} disabled={Boolean(actionKey) || !profile.user_id} className="block w-full rounded-2xl border border-black/10 bg-white px-5 py-4 text-center text-sm font-black text-graphite disabled:opacity-50">
                         Bloquear recursos Pro
                       </button>
-                      <button type="button" onClick={() => runAdminAction(profile, "free")} disabled={Boolean(actionKey)} className="block w-full rounded-2xl border border-black/10 bg-white px-5 py-4 text-center text-sm font-black text-graphite disabled:opacity-50">
+                      <button type="button" onClick={() => runAdminAction(profile, "free")} disabled={Boolean(actionKey) || !profile.user_id} className="block w-full rounded-2xl border border-black/10 bg-white px-5 py-4 text-center text-sm font-black text-graphite disabled:opacity-50">
                         Voltar para Free
                       </button>
                     </div>
