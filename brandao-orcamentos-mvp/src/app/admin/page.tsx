@@ -10,7 +10,7 @@ import { isSupabaseConfigured, supabase } from "@/lib/supabase/client";
 
 const ADMIN_EMAILS = ["brandaopm14@gmail.com", "naobrapodcast@gmail.com", "brandao14@gmail.com"];
 
-type AdminAction = "activate_30" | "activate_90" | "mark_active" | "mark_past_due" | "block" | "free";
+type AdminAction = "activate_30" | "activate_90" | "mark_past_due" | "block" | "free";
 
 type AdminProfile = {
   profile_id: string;
@@ -63,6 +63,14 @@ function statusClasses(status: SubscriptionStatus, plan: AppPlan) {
   if (status === "past_due") return "bg-white text-wood ring-1 ring-wood/30";
   if (status === "blocked") return "bg-graphite text-warning";
   return "bg-white text-cement ring-1 ring-black/10";
+}
+
+function accountSituation(status: SubscriptionStatus, plan: AppPlan, remaining: number | null) {
+  if (plan === "free") return "Plano Free";
+  if (status === "blocked") return "Bloqueado";
+  if (status === "past_due") return "Vencido";
+  if (status === "active" && remaining !== null && remaining >= 0) return "Em dia";
+  return "Vencido";
 }
 
 export default function AdminPage() {
@@ -193,6 +201,7 @@ export default function AdminPage() {
                 const currentStatus = normalizeSubscriptionStatus(profile.subscription_status);
                 const remaining = daysRemaining(profile.paid_until);
                 const statusClass = statusClasses(currentStatus, currentPlan);
+                const situation = accountSituation(currentStatus, currentPlan, remaining);
                 return (
                   <div key={profile.user_id} className="card p-4">
                     <div className="flex items-start justify-between gap-3">
@@ -206,6 +215,9 @@ export default function AdminPage() {
                     </div>
 
                     <div className="mt-3 rounded-2xl bg-technical p-3 text-sm text-cement">
+                      <p><strong className="text-graphite">Plano atual:</strong> {planLabel(currentPlan)}</p>
+                      <p className="mt-1"><strong className="text-graphite">Status:</strong> {statusLabel(currentStatus, currentPlan)}</p>
+                      <p className="mt-1"><strong className="text-graphite">Situação:</strong> {situation}</p>
                       <p><strong className="text-graphite">WhatsApp:</strong> {profile.whatsapp || "Nao informado"}</p>
                       <p className="mt-1"><strong className="text-graphite">Vencimento:</strong> {formatDate(profile.paid_until)}</p>
                       <p className="mt-1"><strong className="text-graphite">Dias restantes:</strong> {remaining === null ? "Sem vencimento" : remaining >= 0 ? `${remaining} dia(s)` : `Vencido ha ${Math.abs(remaining)} dia(s)`}</p>
@@ -214,19 +226,16 @@ export default function AdminPage() {
 
                     <div className="mt-4 grid grid-cols-1 gap-3">
                       <button type="button" onClick={() => runAdminAction(profile, "activate_30")} disabled={Boolean(actionKey)} className="block w-full rounded-2xl bg-warning px-5 py-4 text-center text-sm font-black text-graphite shadow-soft disabled:opacity-50">
-                        {actionKey === `${profile.user_id}-activate_30` ? "Atualizando..." : "Ativar Pro por 30 dias"}
+                        {actionKey === `${profile.user_id}-activate_30` ? "Atualizando..." : "Ativar/Renovar Pro por 30 dias"}
                       </button>
                       <button type="button" onClick={() => runAdminAction(profile, "activate_90")} disabled={Boolean(actionKey)} className="block w-full rounded-2xl bg-warning px-5 py-4 text-center text-sm font-black text-graphite shadow-soft disabled:opacity-50">
-                        {actionKey === `${profile.user_id}-activate_90` ? "Atualizando..." : "Ativar Pro por 90 dias"}
-                      </button>
-                      <button type="button" onClick={() => runAdminAction(profile, "mark_active")} disabled={Boolean(actionKey)} className="block w-full rounded-2xl border border-black/10 bg-white px-5 py-4 text-center text-sm font-black text-graphite disabled:opacity-50">
-                        Marcar como pagamento em dia
+                        {actionKey === `${profile.user_id}-activate_90` ? "Atualizando..." : "Ativar/Renovar Pro por 90 dias"}
                       </button>
                       <button type="button" onClick={() => runAdminAction(profile, "mark_past_due")} disabled={Boolean(actionKey)} className="block w-full rounded-2xl border border-wood/30 bg-white px-5 py-4 text-center text-sm font-black text-graphite disabled:opacity-50">
                         Marcar como vencido
                       </button>
                       <button type="button" onClick={() => runAdminAction(profile, "block")} disabled={Boolean(actionKey)} className="block w-full rounded-2xl border border-black/10 bg-white px-5 py-4 text-center text-sm font-black text-graphite disabled:opacity-50">
-                        Bloquear conta/recursos Pro
+                        Bloquear recursos Pro
                       </button>
                       <button type="button" onClick={() => runAdminAction(profile, "free")} disabled={Boolean(actionKey)} className="block w-full rounded-2xl border border-black/10 bg-white px-5 py-4 text-center text-sm font-black text-graphite disabled:opacity-50">
                         Voltar para Free
