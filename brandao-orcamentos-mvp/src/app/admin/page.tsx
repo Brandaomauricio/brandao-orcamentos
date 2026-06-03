@@ -65,6 +65,11 @@ function statusClasses(status: SubscriptionStatus, plan: AppPlan) {
   return "bg-white text-cement ring-1 ring-black/10";
 }
 
+function summarizeSupabaseError(error: { message?: string; details?: string | null; code?: string } | null) {
+  if (!error) return "";
+  return [error.message, error.details, error.code ? `codigo ${error.code}` : ""].filter(Boolean).join(" | ");
+}
+
 function accountSituation(status: SubscriptionStatus, plan: AppPlan, remaining: number | null) {
   if (plan === "free") return "Plano Free";
   if (status === "blocked") return "Bloqueado";
@@ -136,22 +141,23 @@ export default function AdminPage() {
     setActionKey(nextActionKey);
     setMessage("");
 
-    const { data, error } = await supabase.rpc("admin_update_subscription", {
+    const { data, error } = await supabase.rpc("admin_set_user_subscription_v2", {
       p_user_id: profile.user_id,
       p_action: action,
     });
 
     if (error) {
       console.error("Erro ao atualizar assinatura no admin:", error);
-      setMessage("Nao foi possivel atualizar a assinatura agora.");
+      const technicalError = summarizeSupabaseError(error);
+      setMessage(`Nao foi possivel atualizar a assinatura agora.${technicalError ? ` Erro: ${technicalError}` : ""}`);
       setActionKey("");
       return;
     }
 
-    const updatedRows = (data ?? []) as AdminProfile[];
-    const updatedProfile = updatedRows[0] ?? profile;
-    setProfiles((current) => current.map((item) => (item.user_id === profile.user_id ? updatedProfile : item)));
-    setMessage("Assinatura atualizada com sucesso.");
+    await loadProfiles();
+    const response = Array.isArray(data) ? data[0] : data;
+    const responseMessage = typeof response?.message === "string" ? response.message : "Assinatura atualizada com sucesso.";
+    setMessage(`${responseMessage} Lista recarregada.`);
     setActionKey("");
   }
 
