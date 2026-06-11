@@ -113,6 +113,7 @@ export default function AccountPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isLogoUploading, setIsLogoUploading] = useState(false);
   const logoInputRef = useRef<HTMLInputElement | null>(null);
+  const activeSectionRef = useRef<HTMLElement | null>(null);
 
   const loadProfile = useCallback(async (currentUser: User) => {
     const { data, error } = await supabase
@@ -471,6 +472,10 @@ export default function AccountPage() {
 
   function openSection(sectionId: string) {
     setActiveSection(sectionId);
+    window.setTimeout(() => {
+      activeSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 120);
+
     if (!user) {
       setMessage("Entre na sua conta para editar seus dados profissionais.");
     } else if (sectionId !== "perfil" && sectionId !== "identidade" && sectionId !== "comerciais" && sectionId !== "servicos" && sectionId !== "textos" && sectionId !== "preferencias" && sectionId !== "plano") {
@@ -525,7 +530,7 @@ export default function AccountPage() {
           ))}
         </div>
 
-        <section className="mt-4 card p-4">
+        <section ref={activeSectionRef} className="mt-4 card p-4">
           {activeSection === "perfil" ? (
             <form onSubmit={saveProfile} className="space-y-4">
               <div>
@@ -735,19 +740,19 @@ export default function AccountPage() {
           ) : activeSection === "textos" ? (
             <div>
               <p className="text-sm font-black uppercase tracking-[0.14em] text-wood">Modelos de texto</p>
-              <h2 className="mt-1 text-xl font-black text-graphite">Mensagens e observacoes prontas</h2>
-              <p className="mt-2 text-sm leading-6 text-cement">Acesse modelos para copiar textos ou enviar observacoes e condicoes para o proximo orcamento.</p>
+              <h2 className="mt-1 text-xl font-black text-graphite">Mensagens e observações prontas</h2>
+              <p className="mt-2 text-sm leading-6 text-cement">Acesse modelos para copiar textos ou enviar observações e condições para o próximo orçamento.</p>
               <div className="mt-4 grid grid-cols-1 gap-3">
                 <Link href="/ferramentas/modelos-de-mensagens" className="block rounded-2xl bg-warning px-5 py-4 text-center text-sm font-black text-graphite shadow-soft">Abrir mensagens</Link>
-                <Link href="/ferramentas/observacoes-tecnicas" className="block rounded-2xl border border-black/10 bg-white px-5 py-4 text-center text-sm font-black text-graphite">Abrir observacoes tecnicas</Link>
-                <Link href="/ferramentas/condicoes-comerciais" className="block rounded-2xl border border-black/10 bg-white px-5 py-4 text-center text-sm font-black text-graphite">Abrir condicoes comerciais</Link>
+                <Link href="/ferramentas/observacoes-tecnicas" className="block rounded-2xl border border-black/10 bg-white px-5 py-4 text-center text-sm font-black text-graphite">Abrir observações técnicas</Link>
+                <Link href="/ferramentas/condicoes-comerciais" className="block rounded-2xl border border-black/10 bg-white px-5 py-4 text-center text-sm font-black text-graphite">Abrir condições comerciais</Link>
               </div>
             </div>
           ) : activeSection === "preferencias" ? (
             <div>
-              <p className="text-sm font-black uppercase tracking-[0.14em] text-wood">Preferencias do app</p>
+              <p className="text-sm font-black uppercase tracking-[0.14em] text-wood">Preferências do app</p>
               <h2 className="mt-1 text-xl font-black text-graphite">Ajustes para uso no beta</h2>
-              <p className="mt-2 text-sm leading-6 text-cement">Nesta versao, as preferencias praticas ficam nas ferramentas de apoio e no tutorial.</p>
+              <p className="mt-2 text-sm leading-6 text-cement">Nesta versão, as preferências práticas ficam nas ferramentas de apoio e no tutorial.</p>
               <div className="mt-4 grid grid-cols-1 gap-3">
                 <Link href="/ferramentas/checklists" className="block rounded-2xl bg-warning px-5 py-4 text-center text-sm font-black text-graphite shadow-soft">Abrir checklists</Link>
                 <Link href="/tutorial-e-dicas" className="block rounded-2xl border border-black/10 bg-white px-5 py-4 text-center text-sm font-black text-graphite">Abrir tutorial e dicas</Link>

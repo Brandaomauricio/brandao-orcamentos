@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AppHeader } from "@/components/AppHeader";
 import { AppShell } from "@/components/AppShell";
@@ -84,7 +84,16 @@ function NewBudgetContent() {
   const [proposalNumber, setProposalNumber] = useState("");
   const [publicLinkEnabled, setPublicLinkEnabled] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const serviceSectionRef = useRef<HTMLDivElement | null>(null);
+  const commercialSectionRef = useRef<HTMLDivElement | null>(null);
+  const previewSectionRef = useRef<HTMLDivElement | null>(null);
   const total = useMemo(() => quoteItems.reduce((sum, service) => sum + service.price * service.quantity, 0), [quoteItems]);
+
+  function scrollToSection(ref: { current: HTMLDivElement | null }) {
+    window.setTimeout(() => {
+      ref.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 100);
+  }
 
   function valueOrEmpty(value: unknown) {
     return value === null || value === undefined ? "" : String(value);
@@ -293,6 +302,7 @@ function NewBudgetContent() {
         });
         window.localStorage.removeItem("brandao_pending_service");
         setMessage("Serviço periférico carregado para o orçamento.");
+        scrollToSection(serviceSectionRef);
       } catch (error) {
         console.error("Erro ao carregar serviço preparado:", error);
       }
@@ -303,6 +313,7 @@ function NewBudgetContent() {
       setCommercialTerms((current) => ({ ...current, commercial_notes: [current.commercial_notes, pendingTechnicalNote].filter(Boolean).join("\n") }));
       window.localStorage.removeItem("brandao_pending_technical_note");
       setMessage("Observação técnica aplicada ao orçamento.");
+      scrollToSection(commercialSectionRef);
     }
 
     const pendingCommercialTerms = window.localStorage.getItem("brandao_pending_commercial_terms");
@@ -310,6 +321,7 @@ function NewBudgetContent() {
       setCommercialTerms((current) => ({ ...current, payment_terms: current.payment_terms || pendingCommercialTerms, commercial_notes: [current.commercial_notes, pendingCommercialTerms].filter(Boolean).join("\n") }));
       window.localStorage.removeItem("brandao_pending_commercial_terms");
       setMessage("Condição comercial aplicada ao orçamento.");
+      scrollToSection(commercialSectionRef);
     }
   }, []);
 
@@ -384,6 +396,7 @@ function NewBudgetContent() {
       quantity: String(item.quantity).replace(".", ","),
     });
     setMessage("Edite o serviço e clique em Atualizar serviço.");
+    scrollToSection(serviceSectionRef);
   }
 
   function removeService(itemId: string) {
@@ -408,6 +421,7 @@ function NewBudgetContent() {
       if (!result) return;
       setShowPreview(true);
       setMessage("Proposta gerada. Abra a proposta para imprimir ou salvar em PDF.");
+      scrollToSection(previewSectionRef);
     });
   }
 
@@ -672,7 +686,7 @@ function NewBudgetContent() {
           </div>
         </div>
 
-        <div className="card mt-4 p-4">
+        <div ref={serviceSectionRef} className="card mt-4 p-4">
           <h2 className="text-lg font-black text-graphite">2. Serviço</h2>
           <p className="mt-1 text-sm text-cement">Cadastre um serviço para adicionar ao orçamento.</p>
           <div className="mt-4 space-y-3">
@@ -743,7 +757,7 @@ function NewBudgetContent() {
           </div>
         </div>
 
-        <div className="card mt-4 p-4">
+        <div ref={commercialSectionRef} className="card mt-4 p-4">
           <div className="flex items-start justify-between gap-3">
             <div>
               <h2 className="text-lg font-black text-graphite">4. Condições comerciais</h2>
@@ -857,7 +871,7 @@ function NewBudgetContent() {
         ) : null}
 
         {showPreview ? (
-          <div className="card mt-5 p-5">
+          <div ref={previewSectionRef} className="card mt-5 p-5">
             <p className="text-xs font-black uppercase tracking-[0.25em] text-wood">Prévia do orçamento</p>
             <h2 className="mt-2 text-xl font-black text-graphite">{client.name || "Cliente não informado"}</h2>
             <p className="mt-1 text-sm text-cement">{client.phone || "Telefone não informado"}</p>
