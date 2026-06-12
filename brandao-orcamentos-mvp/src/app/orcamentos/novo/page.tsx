@@ -44,6 +44,21 @@ type CommercialTerms = {
   warranty_text: string;
 };
 
+type ContactPickerContact = {
+  name?: string[];
+  tel?: string[];
+  email?: string[];
+};
+
+type ContactPickerNavigator = Navigator & {
+  contacts?: {
+    select: (
+      properties: Array<"name" | "tel" | "email">,
+      options?: { multiple?: boolean },
+    ) => Promise<ContactPickerContact[]>;
+  };
+};
+
 const unitOptions = ["m²", "m", "unidade", "diária", "serviço"];
 const quoteStatusOptions = [
   { value: "draft", label: "rascunho" },
@@ -74,6 +89,7 @@ function NewBudgetContent() {
   const [quoteItems, setQuoteItems] = useState<QuoteItem[]>([]);
   const [newService, setNewService] = useState({ name: "", unit: "m²", price: "", quantity: "" });
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [technicalNotes, setTechnicalNotes] = useState("");
   const [commercialTerms, setCommercialTerms] = useState<CommercialTerms>(emptyCommercialTerms);
   const [commercialDefaults, setCommercialDefaults] = useState<CommercialTerms>(emptyCommercialTerms);
   const [quoteStatus, setQuoteStatus] = useState("draft");
@@ -236,6 +252,7 @@ function NewBudgetContent() {
       approval_text: valueOrEmpty(budget.approval_text),
       warranty_text: valueOrEmpty(budget.warranty_text),
     });
+    setTechnicalNotes(valueOrEmpty(budget.technical_notes));
     setQuoteItems(
       (budgetItems ?? []).map((item) => ({
         id: item.id,
@@ -310,7 +327,7 @@ function NewBudgetContent() {
 
     const pendingTechnicalNote = window.localStorage.getItem("brandao_pending_technical_note");
     if (pendingTechnicalNote) {
-      setCommercialTerms((current) => ({ ...current, commercial_notes: [current.commercial_notes, pendingTechnicalNote].filter(Boolean).join("\n") }));
+      setTechnicalNotes((current) => [current, pendingTechnicalNote].filter(Boolean).join("\n"));
       window.localStorage.removeItem("brandao_pending_technical_note");
       setMessage("Observação técnica aplicada ao orçamento.");
       scrollToSection(commercialSectionRef);
@@ -397,6 +414,32 @@ function NewBudgetContent() {
     });
     setMessage("Edite o serviço e clique em Atualizar serviço.");
     scrollToSection(serviceSectionRef);
+  }
+
+  async function importContactFromDevice() {
+    const contactPicker = (navigator as ContactPickerNavigator).contacts;
+
+    if (!contactPicker?.select) {
+      setMessage("Seu navegador não permite importar contatos automaticamente. Preencha os dados manualmente.");
+      return;
+    }
+
+    try {
+      const contacts = await contactPicker.select(["name", "tel", "email"], { multiple: false });
+      const contact = contacts[0];
+      if (!contact) return;
+
+      setClient((current) => ({
+        ...current,
+        name: contact.name?.[0] ?? current.name,
+        phone: contact.tel?.[0] ?? current.phone,
+        email: contact.email?.[0] ?? current.email,
+      }));
+      setMessage("Contato importado da agenda. Confira os dados antes de salvar.");
+    } catch (error) {
+      console.error("Erro ao importar contato da agenda:", error);
+      setMessage("Não foi possível importar o contato. Preencha os dados manualmente.");
+    }
   }
 
   function removeService(itemId: string) {
@@ -564,6 +607,7 @@ function NewBudgetContent() {
       commercial_conditions: commercialText,
       payment_method: commercialTerms.payment_terms.trim() || null,
       notes: commercialTerms.commercial_notes.trim() || null,
+      technical_notes: technicalNotes.trim() || null,
       warranty_text: commercialTerms.warranty_text.trim() || null,
       down_payment_value: parseMoneyValue(commercialTerms.down_payment_value) || null,
       down_payment_percent: parseMoneyValue(commercialTerms.down_payment_percent) || null,
@@ -678,6 +722,13 @@ function NewBudgetContent() {
               </Link>
             </div>
           ) : null}
+          <button
+            type="button"
+            onClick={importContactFromDevice}
+            className="mt-4 block w-full rounded-2xl border border-black/10 bg-white px-5 py-4 text-center text-sm font-black text-graphite"
+          >
+            Importar da agenda
+          </button>
           <div className="mt-4 space-y-3">
             <input className="input" placeholder="Nome do cliente" value={client.name} onChange={(event) => setClient({ ...client, name: event.target.value })} />
             <input className="input" placeholder="Telefone / WhatsApp" value={client.phone} onChange={(event) => setClient({ ...client, phone: event.target.value })} />
@@ -844,6 +895,16 @@ function NewBudgetContent() {
                 value={commercialTerms.warranty_text}
                 onChange={(event) => updateCommercialTerm("warranty_text", event.target.value)}
                 placeholder="Ex.: Garantia conforme serviço executado e condições da obra."
+              />
+            </label>
+
+            <label className="block">
+              <span className="label block">Observações técnicas / instruções da obra</span>
+              <textarea
+                className="input min-h-24 resize-none"
+                value={technicalNotes}
+                onChange={(event) => setTechnicalNotes(event.target.value)}
+                placeholder="Ex.: Base precisa estar limpa, seca, firme e nivelada. Remoção de móveis não inclusa. Execução conforme condições verificadas em obra."
               />
             </label>
           </div>

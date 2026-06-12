@@ -131,7 +131,7 @@ export function ProposalDocument({ budget, client, profile, showActions = true }
   const professionalLocation = realValue(profile?.city_state) || [realValue(profile?.city), realValue(profile?.state)].filter(Boolean).join("/");
   const professionalDocument = realValue(profile?.document_number) || realValue(profile?.document);
   const signatureText = realValue(profile?.signature_text) || realValue(profile?.institutional_note) || "Gerado pelo Obra Fechada — por Brandão.";
-  const technicalNotes = realValue(budget.technical_notes) || realValue(budget.notes);
+  const technicalNotes = realValue(budget.technical_notes);
   const customLogoUrl = realValue(profile?.logo_url);
 
   return (

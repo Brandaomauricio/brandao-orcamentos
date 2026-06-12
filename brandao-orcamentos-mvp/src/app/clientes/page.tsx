@@ -20,6 +20,21 @@ type Client = {
   created_at?: string;
 };
 
+type ContactPickerContact = {
+  name?: string[];
+  tel?: string[];
+  email?: string[];
+};
+
+type ContactPickerNavigator = Navigator & {
+  contacts?: {
+    select: (
+      properties: Array<"name" | "tel" | "email">,
+      options?: { multiple?: boolean },
+    ) => Promise<ContactPickerContact[]>;
+  };
+};
+
 export default function ClientsPage() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
@@ -187,6 +202,32 @@ export default function ClientsPage() {
     setMessage("Edite os dados no formulário e clique em Atualizar cliente.");
   }
 
+  async function importContactFromDevice() {
+    const contactPicker = (navigator as ContactPickerNavigator).contacts;
+
+    if (!contactPicker?.select) {
+      setMessage("Seu navegador não permite importar contatos automaticamente. Preencha os dados manualmente.");
+      return;
+    }
+
+    try {
+      const contacts = await contactPicker.select(["name", "tel", "email"], { multiple: false });
+      const contact = contacts[0];
+      if (!contact) return;
+
+      setForm((current) => ({
+        ...current,
+        name: contact.name?.[0] ?? current.name,
+        whatsapp: contact.tel?.[0] ?? current.whatsapp,
+        email: contact.email?.[0] ?? current.email,
+      }));
+      setMessage("Contato importado da agenda. Confira os dados antes de salvar.");
+    } catch (error) {
+      console.error("Erro ao importar contato da agenda:", error);
+      setMessage("Não foi possível importar o contato. Preencha os dados manualmente.");
+    }
+  }
+
   async function deleteClient() {
     if (!selectedClient || !user) return;
 
@@ -240,6 +281,13 @@ export default function ClientsPage() {
 
         <form onSubmit={saveClient} className="card p-4">
           <h2 className="text-lg font-black text-graphite">{editingClientId ? "Editar cliente" : "Novo cliente"}</h2>
+          <button
+            type="button"
+            onClick={importContactFromDevice}
+            className="mt-4 block w-full rounded-2xl border border-black/10 bg-white px-5 py-4 text-center text-sm font-black text-graphite"
+          >
+            Importar da agenda
+          </button>
           <div className="mt-4 space-y-3">
             <input className="input" placeholder="Nome do cliente" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} />
             <input className="input" placeholder="WhatsApp" value={form.whatsapp} onChange={(event) => setForm({ ...form, whatsapp: event.target.value })} />
