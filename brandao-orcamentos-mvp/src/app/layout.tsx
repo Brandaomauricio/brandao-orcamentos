@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Obra Fechada",
-  description: "App de orçamentos profissionais para instaladores.",
+  description: "App de or\u00e7amentos profissionais para instaladores.",
   manifest: "/manifest.json",
   icons: {
     icon: [
@@ -17,13 +17,13 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     title: "Obra Fechada",
-    statusBarStyle: "default",
+    statusBarStyle: "black-translucent",
   },
   applicationName: "Obra Fechada",
 };
 
 export const viewport: Viewport = {
-  themeColor: "#F2C94C",
+  themeColor: "#080808",
   width: "device-width",
   initialScale: 1,
 };

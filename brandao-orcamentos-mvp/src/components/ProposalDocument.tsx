@@ -88,9 +88,8 @@ function realValue(value: unknown) {
 
 function DefaultProposalLogo() {
   return (
-    <div className="flex h-full w-full flex-col items-center justify-center rounded-md border border-graphite/10 bg-white px-2 text-center">
-      <span className="text-[20px] font-black leading-none text-graphite">Obra Fechada</span>
-      <span className="mt-1 text-[11px] font-bold uppercase tracking-[0.18em] text-wood">por Brandão</span>
+    <div className="flex h-full w-full items-center justify-center rounded-md border border-graphite/10 bg-[#101010] px-2">
+      <img src="/logo-obra-fechada.png" alt="Obra Fechada" className="max-h-full max-w-full object-contain" />
     </div>
   );
 }

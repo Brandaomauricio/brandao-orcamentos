@@ -7,8 +7,8 @@ const config: Config = {
       colors: {
         graphite: "#111111",
         cement: "#4A4A4A",
-        wood: "#C49A6C",
-        warning: "#F2B705",
+        wood: "#D4A03D",
+        warning: "#D4A03D",
         technical: "#F5F5F5",
       },
       boxShadow: {

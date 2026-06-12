@@ -95,9 +95,8 @@ function splitCityState(cityState: string | null | undefined) {
 
 function DefaultAccountLogo() {
   return (
-    <div className="flex h-28 w-full flex-col items-center justify-center rounded-xl border border-black/10 bg-technical px-3 text-center">
-      <span className="text-2xl font-black leading-none text-graphite">Obra Fechada</span>
-      <span className="mt-2 text-xs font-bold uppercase tracking-[0.18em] text-wood">por Brandão</span>
+    <div className="flex h-28 w-full items-center justify-center rounded-xl border border-white/10 bg-[#101010] px-3">
+      <img src="/logo-obra-fechada.png" alt="Obra Fechada" className="max-h-full max-w-full object-contain" />
     </div>
   );
 }

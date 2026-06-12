@@ -1,12 +1,12 @@
 {
   "name": "Obra Fechada",
   "short_name": "Obra Fechada",
-  "description": "App de orcamentos profissionais para instaladores.",
+  "description": "App de or\u00e7amentos profissionais para instaladores.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#F5F5F5",
-  "theme_color": "#F2C94C",
+  "background_color": "#080808",
+  "theme_color": "#080808",
   "orientation": "portrait",
   "icons": [
     {
