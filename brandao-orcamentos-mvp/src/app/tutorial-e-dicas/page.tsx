@@ -10,6 +10,7 @@ type Tutorial = {
   title: string;
   description: string;
   steps: string[];
+  note?: string;
   href: string;
   actionLabel: string;
 };
@@ -100,6 +101,24 @@ const tutorials: Tutorial[] = [
     actionLabel: "Ir para Meus Servicos",
   },
   {
+    id: "calculadora-profissional",
+    title: "Como usar a Calculadora Profissional",
+    description: "A Calculadora Profissional ajuda você a descobrir quanto precisa cobrar em uma obra antes de montar a proposta. A Base da diária mostra o mínimo que você precisa gerar por dia, enquanto os Dados da obra somam apenas os custos específicos daquele serviço.",
+    steps: [
+      "Preencha quanto você quer tirar por mês, seus custos fixos mensais da profissão e quantos dias costuma trabalhar.",
+      "Use custos fixos mensais para despesas da profissão, como ferramentas, manutenção, telefone, internet, app, contador, EPI e divulgação.",
+      "Informe os dados da obra: metragem, dias estimados, ajudante, deslocamento desta obra e outros custos específicos desse serviço.",
+      "Não repita combustível ou outro custo nos dois campos: o que é mensal entra na Base da diária; o que é causado por esta obra entra em Dados da obra.",
+      "Ajuste as margens de dificuldade, lucro e negociação.",
+      "Confira o preço mínimo, o preço recomendado e o valor por m².",
+      'Clique em "Usar esse valor no orçamento" para levar o valor calculado para a proposta.',
+      "No orçamento, revise o serviço carregado antes de salvar ou enviar ao cliente.",
+    ],
+    note: "Essa calculadora não substitui sua análise profissional da obra. Ela serve como apoio para evitar orçamento no achismo e ajudar o instalador a não trabalhar no prejuízo.",
+    href: "/calculadora-profissional",
+    actionLabel: "Ir para Calculadora",
+  },
+  {
     id: "condicoes-comerciais",
     title: "Como usar condicoes comerciais",
     description: "Defina textos e regras comerciais para agilizar a apresentacao das propostas.",
@@ -162,6 +181,7 @@ export default function TutorialPage() {
                       <li key={step}>{step}</li>
                     ))}
                   </ol>
+                  {tutorial.note ? <p className="mt-4 rounded-2xl bg-technical p-4 text-sm font-bold leading-6 text-cement">{tutorial.note}</p> : null}
                   <Link
                     href={tutorial.href}
                     className="mt-5 block rounded-2xl bg-warning px-5 py-4 text-center text-sm font-black text-graphite shadow-soft"

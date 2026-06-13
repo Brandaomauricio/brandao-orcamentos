@@ -31,6 +31,7 @@ export default function MorePage() {
         <CardLink href="/minha-conta" title="Minha Conta" description="Dados profissionais e padroes." />
         <CardLink href="/clientes" title="Clientes" description="Contatos e historico de atendimento." />
         <CardLink href="/ferramentas" title="Ferramentas" description="Checklists e modelos." />
+        <CardLink href="/calculadora-profissional" title="Calculadora Profissional" description="Calcule preço mínimo, lucro e margem antes de montar a proposta." />
         <CardLink href="/tutorial-e-dicas" title="Tutorial e dicas" description="Aprenda o app." />
         <CardLink href="/fale-conosco" title="Fale conosco" description="Suporte e sugestoes." />
         <CardLink href="/planos" title="Planos" description="Free, Pro e acesso profissional." />

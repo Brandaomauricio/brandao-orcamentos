@@ -482,13 +482,24 @@ function NewBudgetContent() {
   function selectSavedService(serviceId: string) {
     const service = savedServices.find((item) => item.id === serviceId);
     if (!service) return;
-    setNewService({
-      name: service.name,
-      unit: service.unit || "serviço",
-      price: service.default_price ? String(service.default_price).replace(".", ",") : "",
-      quantity: "1",
+
+    setNewService((current) => {
+      const hasFilledPrice = Boolean(current.price.trim());
+      const hasFilledQuantity = Boolean(current.quantity.trim());
+
+      setMessage(
+        hasFilledPrice || hasFilledQuantity
+          ? "Serviço salvo aplicado. Mantive o valor e a quantidade já preenchidos."
+          : "Serviço padrão carregado. Ajuste quantidade e preço antes de adicionar.",
+      );
+
+      return {
+        name: service.name,
+        unit: service.unit || current.unit || "serviço",
+        price: current.price || (service.default_price ? String(service.default_price).replace(".", ",") : ""),
+        quantity: current.quantity || "1",
+      };
     });
-    setMessage("Serviço padrão carregado. Ajuste quantidade e preço antes de adicionar.");
   }
 
   async function ensureClient(userId: string) {
