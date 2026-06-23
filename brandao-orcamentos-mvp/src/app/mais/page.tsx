@@ -30,6 +30,7 @@ export default function MorePage() {
         {showAdmin ? <CardLink href="/admin" title="Painel Admin" description="Gerencie planos e vencimentos." /> : null}
         <CardLink href="/minha-conta" title="Minha Conta" description="Dados profissionais e padroes." />
         <CardLink href="/clientes" title="Clientes" description="Contatos e historico de atendimento." />
+        <CardLink href="/controle-obras" title="Controle de Obras" description="Obras, entradas, saidas e resultados." />
         <CardLink href="/ferramentas" title="Ferramentas" description="Checklists e modelos." />
         <CardLink href="/calculadora-profissional" title="Calculadora Profissional" description="Calcule preço mínimo, lucro e margem antes de montar a proposta." />
         <CardLink href="/tutorial-e-dicas" title="Tutorial e dicas" description="Aprenda o app." />
