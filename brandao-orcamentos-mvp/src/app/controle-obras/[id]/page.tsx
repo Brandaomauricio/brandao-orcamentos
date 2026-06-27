@@ -102,6 +102,10 @@ function categoriaLabel(categoria: Categoria) {
   return String(categoria.nome ?? categoria.categoria ?? categoria.descricao ?? categoria.name ?? "");
 }
 
+function valorForm(value: number | null) {
+  return value === null || value === undefined ? "" : String(value).replace(".", ",");
+}
+
 export default function DetalheControleObraPage() {
   const params = useParams<{ id: string }>();
   const obraId = params.id;
@@ -115,6 +119,7 @@ export default function DetalheControleObraPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const [editingLancamentoId, setEditingLancamentoId] = useState<string | null>(null);
 
   const categoriasFiltradas = useMemo(() => {
     return categorias.filter((categoria) => String(categoria.tipo ?? "").toLowerCase() === form.tipo);
@@ -198,9 +203,37 @@ export default function DetalheControleObraPage() {
     });
   }, [loadDetalhes]);
 
-  useEffect(() => {
-    setForm((current) => ({ ...current, categoria: "" }));
-  }, [form.tipo]);
+  function resetLancamentoForm() {
+    setForm({ ...emptyLancamento, data_lancamento: new Date().toISOString().slice(0, 10) });
+    setEditingLancamentoId(null);
+  }
+
+  function toggleForm() {
+    if (showForm) {
+      setShowForm(false);
+      resetLancamentoForm();
+      return;
+    }
+
+    setShowForm(true);
+    setMessage("");
+  }
+
+  function editLancamento(lancamento: Lancamento) {
+    setEditingLancamentoId(lancamento.id);
+    setForm({
+      data_lancamento: lancamento.data_lancamento || new Date().toISOString().slice(0, 10),
+      tipo: String(lancamento.tipo || "entrada"),
+      categoria: lancamento.categoria || "",
+      descricao: lancamento.descricao || "",
+      valor: valorForm(lancamento.valor),
+      status: lancamento.status || "pago",
+      forma_pagamento: lancamento.forma_pagamento || "",
+      observacao: lancamento.observacao || "",
+    });
+    setShowForm(true);
+    setMessage("Editando lancamento financeiro.");
+  }
 
   async function saveLancamento(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -216,9 +249,7 @@ export default function DetalheControleObraPage() {
     setIsSaving(true);
     setMessage("");
 
-    const { error } = await supabase.from("obra_lancamentos").insert({
-      user_id: user.id,
-      obra_id: obra.id,
+    const payload = {
       data_lancamento: form.data_lancamento || null,
       tipo: form.tipo,
       categoria: form.categoria || null,
@@ -227,18 +258,70 @@ export default function DetalheControleObraPage() {
       status: form.status,
       forma_pagamento: form.forma_pagamento.trim() || null,
       observacao: form.observacao.trim() || null,
-    });
+    };
 
-    if (error) {
-      console.error("Erro ao salvar lancamento:", error);
+    let requestError: unknown = null;
+
+    if (editingLancamentoId) {
+      const { error } = await supabase
+        .from("obra_lancamentos")
+        .update(payload)
+        .eq("id", editingLancamentoId)
+        .eq("obra_id", obra.id)
+        .eq("user_id", user.id);
+      requestError = error;
+    } else {
+      const { error } = await supabase.from("obra_lancamentos").insert({
+        user_id: user.id,
+        obra_id: obra.id,
+        ...payload,
+      });
+      requestError = error;
+    }
+
+    if (requestError) {
+      console.error("Erro ao salvar lancamento:", requestError);
       setMessage("Nao foi possivel salvar o lancamento agora.");
       setIsSaving(false);
       return;
     }
 
-    setForm({ ...emptyLancamento, tipo: form.tipo, data_lancamento: new Date().toISOString().slice(0, 10) });
+    const successMessage = editingLancamentoId ? "Lancamento atualizado com sucesso." : "Lancamento salvo com sucesso.";
+    resetLancamentoForm();
     setShowForm(false);
-    setMessage("Lancamento salvo com sucesso.");
+    setMessage(successMessage);
+    await loadDetalhes(user);
+    setIsSaving(false);
+  }
+
+  async function deleteLancamento(lancamento: Lancamento) {
+    if (!user || !obra) {
+      setMessage("Entre na sua conta para excluir lancamentos.");
+      return;
+    }
+
+    const confirmDelete = window.confirm(`Excluir o lancamento "${lancamento.descricao || "sem descricao"}"? Esta acao nao pode ser desfeita.`);
+    if (!confirmDelete) return;
+
+    setIsSaving(true);
+    setMessage("");
+
+    const { error } = await supabase
+      .from("obra_lancamentos")
+      .delete()
+      .eq("id", lancamento.id)
+      .eq("obra_id", obra.id)
+      .eq("user_id", user.id);
+
+    if (error) {
+      console.error("Erro ao excluir lancamento:", error);
+      setMessage("Nao foi possivel excluir o lancamento agora.");
+      setIsSaving(false);
+      return;
+    }
+
+    if (editingLancamentoId === lancamento.id) resetLancamentoForm();
+    setMessage("Lancamento excluido com sucesso.");
     await loadDetalhes(user);
     setIsSaving(false);
   }
@@ -305,13 +388,13 @@ export default function DetalheControleObraPage() {
               ))}
             </section>
 
-            <button type="button" onClick={() => setShowForm((current) => !current)} className="mobile-action mobile-action-primary mt-5 w-full">
-              {showForm ? "Fechar lancamento" : "+ Adicionar lancamento"}
+            <button type="button" onClick={toggleForm} className="mobile-action mobile-action-primary mt-5 w-full">
+              {showForm ? (editingLancamentoId ? "Cancelar edicao" : "Fechar lancamento") : "+ Adicionar lancamento"}
             </button>
 
             {showForm ? (
               <form onSubmit={saveLancamento} className="card mt-4 p-4">
-                <h2 className="text-lg font-black text-graphite">Novo lancamento</h2>
+                <h2 className="text-lg font-black text-graphite">{editingLancamentoId ? "Editar lancamento" : "Novo lancamento"}</h2>
                 <div className="mt-4 space-y-3">
                   <label className="block">
                     <span className="label block">Data</span>
@@ -320,7 +403,7 @@ export default function DetalheControleObraPage() {
                   <div className="grid grid-cols-2 gap-3">
                     <label className="block">
                       <span className="label block">Tipo</span>
-                      <select className="input" value={form.tipo} onChange={(event) => setForm({ ...form, tipo: event.target.value })}>
+                      <select className="input" value={form.tipo} onChange={(event) => setForm({ ...form, tipo: event.target.value, categoria: "" })}>
                         <option value="entrada">entrada</option>
                         <option value="saida">saida</option>
                       </select>
@@ -348,7 +431,7 @@ export default function DetalheControleObraPage() {
                   <textarea className="input min-h-24 resize-none" placeholder="Observacao" value={form.observacao} onChange={(event) => setForm({ ...form, observacao: event.target.value })} />
                 </div>
                 <button type="submit" disabled={isSaving} className="mobile-action mobile-action-primary mt-4 w-full disabled:opacity-60">
-                  {isSaving ? "Salvando..." : "Salvar lancamento"}
+                  {isSaving ? "Salvando..." : editingLancamentoId ? "Salvar edicao" : "Salvar lancamento"}
                 </button>
               </form>
             ) : null}
@@ -363,7 +446,26 @@ export default function DetalheControleObraPage() {
                       <p className="font-black text-graphite">{lancamento.descricao || "Lancamento sem descricao"}</p>
                       <p className="mt-1 text-sm text-cement">{formatDate(lancamento.data_lancamento)} · {lancamento.categoria || "sem categoria"}</p>
                     </div>
-                    <StatusPill>{lancamento.status || "pendente"}</StatusPill>
+                    <div className="flex flex-col items-end gap-2">
+                      <StatusPill>{lancamento.status || "pendente"}</StatusPill>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => editLancamento(lancamento)}
+                          className="rounded-full border border-black/10 bg-white px-3 py-1 text-xs font-black text-graphite shadow-sm"
+                        >
+                          Editar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => deleteLancamento(lancamento)}
+                          disabled={isSaving}
+                          className="rounded-full border border-black/10 bg-white px-3 py-1 text-xs font-black text-wood shadow-sm disabled:opacity-60"
+                        >
+                          Excluir
+                        </button>
+                      </div>
+                    </div>
                   </div>
                   <p className={`mt-3 text-2xl font-black ${lancamento.tipo === "saida" ? "text-wood" : "text-graphite"}`}>
                     {lancamento.tipo === "saida" ? "- " : "+ "}{currencyBRL(Number(lancamento.valor ?? 0))}
