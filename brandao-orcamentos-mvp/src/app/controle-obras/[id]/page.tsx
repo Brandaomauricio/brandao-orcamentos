@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import type { User } from "@supabase/supabase-js";
@@ -210,6 +210,7 @@ function safeFileName(fileName: string) {
 export default function DetalheControleObraPage() {
   const params = useParams<{ id: string }>();
   const obraId = params.id;
+  const diarioFileInputRef = useRef<HTMLInputElement | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [obra, setObra] = useState<ObraControle | null>(null);
   const [resumo, setResumo] = useState<ResumoObra | null>(null);
@@ -324,6 +325,37 @@ export default function DetalheControleObraPage() {
       return acc;
     }, {});
   }, [diarioFotos]);
+
+  const diarioFilePreviews = useMemo(() => {
+    return diarioFiles.map((file, index) => ({
+      key: `${file.name}-${file.size}-${file.lastModified}-${index}`,
+      name: file.name,
+      url: URL.createObjectURL(file),
+    }));
+  }, [diarioFiles]);
+
+  useEffect(() => {
+    return () => {
+      diarioFilePreviews.forEach((preview) => URL.revokeObjectURL(preview.url));
+    };
+  }, [diarioFilePreviews]);
+
+  function clearDiarioFiles() {
+    setDiarioFiles([]);
+    if (diarioFileInputRef.current) {
+      diarioFileInputRef.current.value = "";
+    }
+  }
+
+  function handleDiarioFilesChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const selectedFiles = Array.from(event.target.files ?? []);
+    setDiarioFiles((currentFiles) => [...currentFiles, ...selectedFiles]);
+    event.currentTarget.value = "";
+  }
+
+  function removeDiarioFile(indexToRemove: number) {
+    setDiarioFiles((currentFiles) => currentFiles.filter((_, index) => index !== indexToRemove));
+  }
 
   const loadDetalhes = useCallback(async (currentUser: User) => {
     setIsLoading(true);
@@ -584,12 +616,13 @@ export default function DetalheControleObraPage() {
     }
 
     const diarioId = savedDiario?.id || editingDiarioId;
+    let fotosComErro = 0;
 
     if (diarioId && diarioFiles.length) {
       const uploaded: Array<{ user_id: string; obra_id: string; diario_id: string; path: string; url: string }> = [];
 
-      for (const file of diarioFiles) {
-        const path = `${user.id}/${obra.id}/${diarioId}/${Date.now()}-${safeFileName(file.name)}`;
+      for (const [index, file] of diarioFiles.entries()) {
+        const path = `${user.id}/${obra.id}/${diarioId}/${Date.now()}-${index}-${crypto.randomUUID()}-${safeFileName(file.name)}`;
         const uploadResult = await supabase.storage.from(diarioFotosBucket).upload(path, file, {
           cacheControl: "3600",
           upsert: false,
@@ -597,7 +630,7 @@ export default function DetalheControleObraPage() {
 
         if (uploadResult.error) {
           console.error("Erro ao enviar foto do diario:", uploadResult.error);
-          setMessage("O diario foi salvo, mas uma ou mais fotos nao puderam ser enviadas.");
+          fotosComErro += 1;
           continue;
         }
 
@@ -616,16 +649,22 @@ export default function DetalheControleObraPage() {
 
         if (fotosError) {
           console.error("Erro ao salvar vinculo das fotos do diario:", fotosError);
-          setMessage("O diario foi salvo, mas nao foi possivel vincular todas as fotos.");
+          fotosComErro += uploaded.length;
         }
       }
     }
 
     setDiarioForm({ ...emptyDiario, data_relatorio: new Date().toISOString().slice(0, 10) });
-    setDiarioFiles([]);
+    clearDiarioFiles();
     setEditingDiarioId("");
     setShowDiarioForm(false);
-    setMessage((current) => current || (editingDiarioId ? "Relatorio do diario atualizado com sucesso." : "Relatorio do diario salvo com sucesso."));
+    setMessage((current) => {
+      if (current) return current;
+      if (fotosComErro > 0) {
+        return `Relatorio salvo, mas ${fotosComErro} foto${fotosComErro === 1 ? "" : "s"} nao puderam ser enviadas.`;
+      }
+      return editingDiarioId ? "Relatorio do diario atualizado com sucesso." : "Relatorio do diario salvo com sucesso.";
+    });
     await loadDetalhes(user);
     setIsSavingDiario(false);
   }
@@ -642,7 +681,7 @@ export default function DetalheControleObraPage() {
       clima: diario.clima || "",
       observacoes: diario.observacoes || "",
     });
-    setDiarioFiles([]);
+    clearDiarioFiles();
     setShowDiarioForm(true);
     setMessage("Edite o relatorio do diario e salve as alteracoes.");
   }
@@ -650,7 +689,7 @@ export default function DetalheControleObraPage() {
   function cancelEditDiario() {
     setEditingDiarioId("");
     setDiarioForm({ ...emptyDiario, data_relatorio: new Date().toISOString().slice(0, 10) });
-    setDiarioFiles([]);
+    clearDiarioFiles();
     setShowDiarioForm(false);
     setMessage("Edicao do diario cancelada.");
   }
@@ -800,7 +839,7 @@ export default function DetalheControleObraPage() {
                       cancelEditDiario();
                       return;
                     }
-                    if (showDiarioForm) setDiarioFiles([]);
+                    if (showDiarioForm) clearDiarioFiles();
                     setShowDiarioForm((current) => !current);
                   }}
                   className="rounded-xl border border-black/10 bg-white px-3 py-2 text-xs font-black text-graphite"
@@ -826,16 +865,34 @@ export default function DetalheControleObraPage() {
                   <label className="block">
                     <span className="label block">Fotos</span>
                     <input
+                      ref={diarioFileInputRef}
                       className="input"
                       type="file"
                       accept="image/*"
                       multiple
-                      onChange={(event) => setDiarioFiles(Array.from(event.target.files ?? []))}
+                      onChange={handleDiarioFilesChange}
                     />
                   </label>
                   {diarioFiles.length ? (
-                    <div className="rounded-2xl bg-technical p-3 text-sm font-bold text-cement">
-                      {diarioFiles.length} foto{diarioFiles.length === 1 ? "" : "s"} selecionada{diarioFiles.length === 1 ? "" : "s"}.
+                    <div className="rounded-2xl bg-technical p-3">
+                      <p className="text-sm font-bold text-cement">
+                        {diarioFiles.length} foto{diarioFiles.length === 1 ? "" : "s"} selecionada{diarioFiles.length === 1 ? "" : "s"}.
+                      </p>
+                      <div className="mt-3 grid grid-cols-2 gap-2">
+                        {diarioFilePreviews.map((preview, index) => (
+                          <div key={preview.key} className="overflow-hidden rounded-2xl bg-white">
+                            <img src={preview.url} alt={preview.name} className="h-28 w-full object-cover" />
+                            <button
+                              type="button"
+                              onClick={() => removeDiarioFile(index)}
+                              disabled={isSavingDiario}
+                              className="w-full px-3 py-2 text-xs font-black text-graphite disabled:opacity-60"
+                            >
+                              Remover
+                            </button>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   ) : null}
                   <button type="submit" disabled={isSavingDiario} className="mobile-action mobile-action-primary w-full disabled:opacity-60">
