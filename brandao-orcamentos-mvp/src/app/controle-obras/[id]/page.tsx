@@ -41,6 +41,7 @@ type Lancamento = {
 
 type Categoria = Record<string, unknown>;
 type ResumoObra = Record<string, unknown>;
+type PeriodoFiltro = "todos" | "hoje" | "semana" | "mes" | "personalizado";
 
 const emptyLancamento = {
   data_lancamento: new Date().toISOString().slice(0, 10),
@@ -58,6 +59,15 @@ const statusLancamentoOptions = [
   { value: "pendente", label: "pendente" },
   { value: "cancelado", label: "cancelado" },
 ];
+
+const emptyFilters = {
+  periodo: "todos" as PeriodoFiltro,
+  dataInicial: "",
+  dataFinal: "",
+  tipo: "todos",
+  status: "todos",
+  categoria: "todas",
+};
 
 function parseNumber(value: string) {
   const normalized = value.replace(/\./g, "").replace(",", ".");
@@ -102,8 +112,54 @@ function categoriaLabel(categoria: Categoria) {
   return String(categoria.nome ?? categoria.categoria ?? categoria.descricao ?? categoria.name ?? "");
 }
 
-function valorForm(value: number | null) {
+function formatFormNumber(value: number | null) {
   return value === null || value === undefined ? "" : String(value).replace(".", ",");
+}
+
+function localDateInput(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function addDays(date: Date, days: number) {
+  const nextDate = new Date(date);
+  nextDate.setDate(nextDate.getDate() + days);
+  return nextDate;
+}
+
+function periodRange(periodo: PeriodoFiltro, dataInicial: string, dataFinal: string) {
+  const today = new Date();
+
+  if (periodo === "hoje") {
+    const currentDate = localDateInput(today);
+    return { start: currentDate, end: currentDate };
+  }
+
+  if (periodo === "semana") {
+    const dayOfWeek = today.getDay();
+    const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+    const start = addDays(today, -daysFromMonday);
+    const end = addDays(start, 6);
+    return { start: localDateInput(start), end: localDateInput(end) };
+  }
+
+  if (periodo === "mes") {
+    const start = new Date(today.getFullYear(), today.getMonth(), 1);
+    const end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    return { start: localDateInput(start), end: localDateInput(end) };
+  }
+
+  if (periodo === "personalizado") {
+    return { start: dataInicial, end: dataFinal };
+  }
+
+  return { start: "", end: "" };
+}
+
+function lancamentoValue(lancamento: Lancamento) {
+  return Number(lancamento.valor ?? 0);
 }
 
 export default function DetalheControleObraPage() {
@@ -119,11 +175,93 @@ export default function DetalheControleObraPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [showForm, setShowForm] = useState(false);
-  const [editingLancamentoId, setEditingLancamentoId] = useState<string | null>(null);
+  const [editingLancamentoId, setEditingLancamentoId] = useState("");
+  const [deletingLancamentoId, setDeletingLancamentoId] = useState("");
+  const [filters, setFilters] = useState(emptyFilters);
 
   const categoriasFiltradas = useMemo(() => {
     return categorias.filter((categoria) => String(categoria.tipo ?? "").toLowerCase() === form.tipo);
   }, [categorias, form.tipo]);
+
+  const categoriaFilterOptions = useMemo(() => {
+    const labels = new Set<string>();
+    const hasLancamentoSemCategoria = lancamentos.some((lancamento) => !lancamento.categoria);
+
+    categorias.forEach((categoria) => {
+      const label = categoriaLabel(categoria);
+      if (label) labels.add(label);
+    });
+
+    lancamentos.forEach((lancamento) => {
+      if (lancamento.categoria) labels.add(lancamento.categoria);
+    });
+
+    return {
+      labels: Array.from(labels).sort((a, b) => a.localeCompare(b, "pt-BR")),
+      hasSemCategoria: hasLancamentoSemCategoria,
+    };
+  }, [categorias, lancamentos]);
+
+  const lancamentosFiltrados = useMemo(() => {
+    const range = periodRange(filters.periodo, filters.dataInicial, filters.dataFinal);
+
+    return lancamentos.filter((lancamento) => {
+      const dataLancamento = lancamento.data_lancamento || "";
+      const tipo = String(lancamento.tipo ?? "").toLowerCase();
+      const status = String(lancamento.status ?? "").toLowerCase();
+      const categoria = lancamento.categoria || "";
+
+      if (range.start && (!dataLancamento || dataLancamento < range.start)) return false;
+      if (range.end && (!dataLancamento || dataLancamento > range.end)) return false;
+      if (filters.tipo !== "todos" && tipo !== filters.tipo) return false;
+      if (filters.status !== "todos" && status !== filters.status) return false;
+      if (filters.categoria === "sem-categoria" && categoria) return false;
+      if (filters.categoria !== "todas" && filters.categoria !== "sem-categoria" && categoria !== filters.categoria) return false;
+
+      return true;
+    });
+  }, [filters, lancamentos]);
+
+  const resumoFiltrado = useMemo(() => {
+    return lancamentosFiltrados.reduce(
+      (acc, lancamento) => {
+        const value = lancamentoValue(lancamento);
+        const tipo = String(lancamento.tipo ?? "").toLowerCase();
+        const status = String(lancamento.status ?? "").toLowerCase();
+
+        if (tipo === "entrada") {
+          acc.entradas += value;
+          if (status === "pendente") acc.pendenteReceber += value;
+        }
+
+        if (tipo === "saida") {
+          acc.saidas += value;
+          if (status === "pendente") acc.pendentePagar += value;
+        }
+
+        acc.saldo = acc.entradas - acc.saidas;
+        return acc;
+      },
+      { entradas: 0, saidas: 0, saldo: 0, pendenteReceber: 0, pendentePagar: 0 },
+    );
+  }, [lancamentosFiltrados]);
+
+  const resumoPorCategoria = useMemo(() => {
+    const map = new Map<string, { categoria: string; entradas: number; saidas: number; saldo: number }>();
+
+    lancamentosFiltrados.forEach((lancamento) => {
+      const categoria = lancamento.categoria || "Sem categoria";
+      const current = map.get(categoria) ?? { categoria, entradas: 0, saidas: 0, saldo: 0 };
+      const value = lancamentoValue(lancamento);
+
+      if (lancamento.tipo === "entrada") current.entradas += value;
+      if (lancamento.tipo === "saida") current.saidas += value;
+      current.saldo = current.entradas - current.saidas;
+      map.set(categoria, current);
+    });
+
+    return Array.from(map.values()).sort((a, b) => a.categoria.localeCompare(b.categoria, "pt-BR"));
+  }, [lancamentosFiltrados]);
 
   const loadDetalhes = useCallback(async (currentUser: User) => {
     setIsLoading(true);
@@ -203,38 +341,6 @@ export default function DetalheControleObraPage() {
     });
   }, [loadDetalhes]);
 
-  function resetLancamentoForm() {
-    setForm({ ...emptyLancamento, data_lancamento: new Date().toISOString().slice(0, 10) });
-    setEditingLancamentoId(null);
-  }
-
-  function toggleForm() {
-    if (showForm) {
-      setShowForm(false);
-      resetLancamentoForm();
-      return;
-    }
-
-    setShowForm(true);
-    setMessage("");
-  }
-
-  function editLancamento(lancamento: Lancamento) {
-    setEditingLancamentoId(lancamento.id);
-    setForm({
-      data_lancamento: lancamento.data_lancamento || new Date().toISOString().slice(0, 10),
-      tipo: String(lancamento.tipo || "entrada"),
-      categoria: lancamento.categoria || "",
-      descricao: lancamento.descricao || "",
-      valor: valorForm(lancamento.valor),
-      status: lancamento.status || "pago",
-      forma_pagamento: lancamento.forma_pagamento || "",
-      observacao: lancamento.observacao || "",
-    });
-    setShowForm(true);
-    setMessage("Editando lancamento financeiro.");
-  }
-
   async function saveLancamento(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!user || !obra) {
@@ -249,7 +355,9 @@ export default function DetalheControleObraPage() {
     setIsSaving(true);
     setMessage("");
 
-    const payload = {
+    const lancamentoPayload = {
+      user_id: user.id,
+      obra_id: obra.id,
       data_lancamento: form.data_lancamento || null,
       tipo: form.tipo,
       categoria: form.categoria || null,
@@ -260,70 +368,84 @@ export default function DetalheControleObraPage() {
       observacao: form.observacao.trim() || null,
     };
 
-    let requestError: unknown = null;
+    const { error } = editingLancamentoId
+      ? await supabase
+          .from("obra_lancamentos")
+          .update(lancamentoPayload)
+          .eq("id", editingLancamentoId)
+          .eq("obra_id", obra.id)
+          .eq("user_id", user.id)
+      : await supabase.from("obra_lancamentos").insert(lancamentoPayload);
 
-    if (editingLancamentoId) {
-      const { error } = await supabase
-        .from("obra_lancamentos")
-        .update(payload)
-        .eq("id", editingLancamentoId)
-        .eq("obra_id", obra.id)
-        .eq("user_id", user.id);
-      requestError = error;
-    } else {
-      const { error } = await supabase.from("obra_lancamentos").insert({
-        user_id: user.id,
-        obra_id: obra.id,
-        ...payload,
-      });
-      requestError = error;
-    }
-
-    if (requestError) {
-      console.error("Erro ao salvar lancamento:", requestError);
+    if (error) {
+      console.error("Erro ao salvar lancamento:", error);
       setMessage("Nao foi possivel salvar o lancamento agora.");
       setIsSaving(false);
       return;
     }
 
-    const successMessage = editingLancamentoId ? "Lancamento atualizado com sucesso." : "Lancamento salvo com sucesso.";
-    resetLancamentoForm();
+    setForm({ ...emptyLancamento, tipo: form.tipo, data_lancamento: new Date().toISOString().slice(0, 10) });
+    setEditingLancamentoId("");
     setShowForm(false);
-    setMessage(successMessage);
+    setMessage(editingLancamentoId ? "Lancamento atualizado com sucesso." : "Lancamento salvo com sucesso.");
     await loadDetalhes(user);
     setIsSaving(false);
   }
 
-  async function deleteLancamento(lancamento: Lancamento) {
-    if (!user || !obra) {
-      setMessage("Entre na sua conta para excluir lancamentos.");
-      return;
-    }
+  function editLancamento(lancamento: Lancamento) {
+    setEditingLancamentoId(lancamento.id);
+    setForm({
+      data_lancamento: lancamento.data_lancamento || new Date().toISOString().slice(0, 10),
+      tipo: lancamento.tipo === "saida" ? "saida" : "entrada",
+      categoria: lancamento.categoria || "",
+      descricao: lancamento.descricao || "",
+      valor: formatFormNumber(lancamento.valor),
+      status: lancamento.status || "pago",
+      forma_pagamento: lancamento.forma_pagamento || "",
+      observacao: lancamento.observacao || "",
+    });
+    setShowForm(true);
+    setMessage("Edite o lancamento e salve as alteracoes.");
+  }
 
-    const confirmDelete = window.confirm(`Excluir o lancamento "${lancamento.descricao || "sem descricao"}"? Esta acao nao pode ser desfeita.`);
-    if (!confirmDelete) return;
+  function cancelEditLancamento() {
+    setEditingLancamentoId("");
+    setForm({ ...emptyLancamento, data_lancamento: new Date().toISOString().slice(0, 10) });
+    setShowForm(false);
+    setMessage("Edicao de lancamento cancelada.");
+  }
 
-    setIsSaving(true);
+  async function deleteLancamento(lancamentoId: string) {
+    if (!user || !obra) return;
+    const confirmed = window.confirm("Excluir este lancamento financeiro?");
+    if (!confirmed) return;
+
+    setDeletingLancamentoId(lancamentoId);
     setMessage("");
 
     const { error } = await supabase
       .from("obra_lancamentos")
       .delete()
-      .eq("id", lancamento.id)
+      .eq("id", lancamentoId)
       .eq("obra_id", obra.id)
       .eq("user_id", user.id);
 
     if (error) {
       console.error("Erro ao excluir lancamento:", error);
       setMessage("Nao foi possivel excluir o lancamento agora.");
-      setIsSaving(false);
+      setDeletingLancamentoId("");
       return;
     }
 
-    if (editingLancamentoId === lancamento.id) resetLancamentoForm();
+    if (editingLancamentoId === lancamentoId) {
+      setEditingLancamentoId("");
+      setForm({ ...emptyLancamento, data_lancamento: new Date().toISOString().slice(0, 10) });
+      setShowForm(false);
+    }
+
     setMessage("Lancamento excluido com sucesso.");
     await loadDetalhes(user);
-    setIsSaving(false);
+    setDeletingLancamentoId("");
   }
 
   const resumoCards = [
@@ -388,8 +510,18 @@ export default function DetalheControleObraPage() {
               ))}
             </section>
 
-            <button type="button" onClick={toggleForm} className="mobile-action mobile-action-primary mt-5 w-full">
-              {showForm ? (editingLancamentoId ? "Cancelar edicao" : "Fechar lancamento") : "+ Adicionar lancamento"}
+            <button
+              type="button"
+              onClick={() => {
+                if (showForm && editingLancamentoId) {
+                  cancelEditLancamento();
+                  return;
+                }
+                setShowForm((current) => !current);
+              }}
+              className="mobile-action mobile-action-primary mt-5 w-full"
+            >
+              {showForm ? "Fechar lancamento" : "+ Adicionar lancamento"}
             </button>
 
             {showForm ? (
@@ -431,47 +563,156 @@ export default function DetalheControleObraPage() {
                   <textarea className="input min-h-24 resize-none" placeholder="Observacao" value={form.observacao} onChange={(event) => setForm({ ...form, observacao: event.target.value })} />
                 </div>
                 <button type="submit" disabled={isSaving} className="mobile-action mobile-action-primary mt-4 w-full disabled:opacity-60">
-                  {isSaving ? "Salvando..." : editingLancamentoId ? "Salvar edicao" : "Salvar lancamento"}
+                  {isSaving ? "Salvando..." : editingLancamentoId ? "Salvar alteracoes" : "Salvar lancamento"}
                 </button>
+                {editingLancamentoId ? (
+                  <button type="button" onClick={cancelEditLancamento} disabled={isSaving} className="mobile-action mt-3 w-full border border-black/10 bg-white text-graphite disabled:opacity-60">
+                    Cancelar edicao
+                  </button>
+                ) : null}
               </form>
             ) : null}
+
+            <section className="card mt-6 p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.14em] text-cement">Filtros</p>
+                  <h2 className="mt-1 text-lg font-black text-graphite">Lancamentos financeiros</h2>
+                </div>
+                <button type="button" onClick={() => setFilters(emptyFilters)} className="rounded-xl border border-black/10 bg-white px-3 py-2 text-xs font-black text-graphite">
+                  Limpar
+                </button>
+              </div>
+
+              <div className="mt-4 space-y-3">
+                <label className="block">
+                  <span className="label block">Periodo</span>
+                  <select className="input" value={filters.periodo} onChange={(event) => setFilters({ ...filters, periodo: event.target.value as PeriodoFiltro })}>
+                    <option value="todos">todos</option>
+                    <option value="hoje">hoje</option>
+                    <option value="semana">esta semana</option>
+                    <option value="mes">este mes</option>
+                    <option value="personalizado">personalizado</option>
+                  </select>
+                </label>
+
+                {filters.periodo === "personalizado" ? (
+                  <div className="grid grid-cols-2 gap-3">
+                    <label className="block">
+                      <span className="label block">Data inicial</span>
+                      <input className="input" type="date" value={filters.dataInicial} onChange={(event) => setFilters({ ...filters, dataInicial: event.target.value })} />
+                    </label>
+                    <label className="block">
+                      <span className="label block">Data final</span>
+                      <input className="input" type="date" value={filters.dataFinal} onChange={(event) => setFilters({ ...filters, dataFinal: event.target.value })} />
+                    </label>
+                  </div>
+                ) : null}
+
+                <div className="grid grid-cols-2 gap-3">
+                  <label className="block">
+                    <span className="label block">Tipo</span>
+                    <select className="input" value={filters.tipo} onChange={(event) => setFilters({ ...filters, tipo: event.target.value })}>
+                      <option value="todos">todos</option>
+                      <option value="entrada">entrada</option>
+                      <option value="saida">saida</option>
+                    </select>
+                  </label>
+                  <label className="block">
+                    <span className="label block">Status</span>
+                    <select className="input" value={filters.status} onChange={(event) => setFilters({ ...filters, status: event.target.value })}>
+                      <option value="todos">todos</option>
+                      {statusLancamentoOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                    </select>
+                  </label>
+                </div>
+
+                <label className="block">
+                  <span className="label block">Categoria</span>
+                  <select className="input" value={filters.categoria} onChange={(event) => setFilters({ ...filters, categoria: event.target.value })}>
+                    <option value="todas">todas</option>
+                    {categoriaFilterOptions.hasSemCategoria ? <option value="sem-categoria">sem categoria</option> : null}
+                    {categoriaFilterOptions.labels.map((label) => <option key={label} value={label}>{label}</option>)}
+                  </select>
+                </label>
+              </div>
+            </section>
+
+            <section className="mt-4 grid grid-cols-2 gap-3">
+              <div className="card p-4">
+                <p className="text-xs font-black uppercase tracking-[0.12em] text-cement">Entradas filtradas</p>
+                <p className="mt-2 text-lg font-black text-graphite">{currencyBRL(resumoFiltrado.entradas)}</p>
+              </div>
+              <div className="card p-4">
+                <p className="text-xs font-black uppercase tracking-[0.12em] text-cement">Saidas filtradas</p>
+                <p className="mt-2 text-lg font-black text-wood">{currencyBRL(resumoFiltrado.saidas)}</p>
+              </div>
+              <div className="card p-4">
+                <p className="text-xs font-black uppercase tracking-[0.12em] text-cement">Saldo filtrado</p>
+                <p className="mt-2 text-lg font-black text-graphite">{currencyBRL(resumoFiltrado.saldo)}</p>
+              </div>
+              <div className="card p-4">
+                <p className="text-xs font-black uppercase tracking-[0.12em] text-cement">A receber</p>
+                <p className="mt-2 text-lg font-black text-graphite">{currencyBRL(resumoFiltrado.pendenteReceber)}</p>
+              </div>
+              <div className="card col-span-2 p-4">
+                <p className="text-xs font-black uppercase tracking-[0.12em] text-cement">A pagar</p>
+                <p className="mt-2 text-lg font-black text-wood">{currencyBRL(resumoFiltrado.pendentePagar)}</p>
+              </div>
+            </section>
+
+            <section className="card mt-4 p-4">
+              <h2 className="text-lg font-black text-graphite">Resumo por categoria</h2>
+              <div className="mt-3 space-y-3">
+                {!resumoPorCategoria.length ? <p className="text-sm font-bold text-cement">Nenhuma categoria no periodo filtrado.</p> : null}
+                {resumoPorCategoria.map((categoria) => (
+                  <div key={categoria.categoria} className="rounded-2xl bg-technical p-3">
+                    <p className="font-black text-graphite">{categoria.categoria}</p>
+                    <div className="mt-2 grid grid-cols-3 gap-2 text-xs font-black text-cement">
+                      <div>
+                        <p>Entradas</p>
+                        <p className="mt-1 text-graphite">{currencyBRL(categoria.entradas)}</p>
+                      </div>
+                      <div>
+                        <p>Saidas</p>
+                        <p className="mt-1 text-wood">{currencyBRL(categoria.saidas)}</p>
+                      </div>
+                      <div>
+                        <p>Saldo</p>
+                        <p className="mt-1 text-graphite">{currencyBRL(categoria.saldo)}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
 
             <h2 className="mt-6 text-lg font-black text-graphite">Lancamentos financeiros</h2>
             <div className="mt-3 space-y-3">
               {!lancamentos.length ? <div className="card p-4 text-sm font-bold text-cement">Nenhum lancamento cadastrado ainda.</div> : null}
-              {lancamentos.map((lancamento) => (
+              {lancamentos.length && !lancamentosFiltrados.length ? <div className="card p-4 text-sm font-bold text-cement">Nenhum lancamento encontrado para os filtros selecionados.</div> : null}
+              {lancamentosFiltrados.map((lancamento) => (
                 <article key={lancamento.id} className="card p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="font-black text-graphite">{lancamento.descricao || "Lancamento sem descricao"}</p>
                       <p className="mt-1 text-sm text-cement">{formatDate(lancamento.data_lancamento)} · {lancamento.categoria || "sem categoria"}</p>
                     </div>
-                    <div className="flex flex-col items-end gap-2">
-                      <StatusPill>{lancamento.status || "pendente"}</StatusPill>
-                      <div className="flex gap-2">
-                        <button
-                          type="button"
-                          onClick={() => editLancamento(lancamento)}
-                          className="rounded-full border border-black/10 bg-white px-3 py-1 text-xs font-black text-graphite shadow-sm"
-                        >
-                          Editar
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => deleteLancamento(lancamento)}
-                          disabled={isSaving}
-                          className="rounded-full border border-black/10 bg-white px-3 py-1 text-xs font-black text-wood shadow-sm disabled:opacity-60"
-                        >
-                          Excluir
-                        </button>
-                      </div>
-                    </div>
+                    <StatusPill>{lancamento.status || "pendente"}</StatusPill>
                   </div>
                   <p className={`mt-3 text-2xl font-black ${lancamento.tipo === "saida" ? "text-wood" : "text-graphite"}`}>
                     {lancamento.tipo === "saida" ? "- " : "+ "}{currencyBRL(Number(lancamento.valor ?? 0))}
                   </p>
                   <p className="mt-1 text-sm font-bold text-cement">{lancamento.tipo || "tipo nao informado"} · {lancamento.forma_pagamento || "forma nao informada"}</p>
                   {lancamento.observacao ? <p className="mt-2 whitespace-pre-line text-sm text-cement">{lancamento.observacao}</p> : null}
+                  <div className="mt-4 grid grid-cols-2 gap-2 text-center text-sm font-black">
+                    <button type="button" onClick={() => editLancamento(lancamento)} disabled={isSaving || deletingLancamentoId === lancamento.id} className="rounded-xl border border-black/10 bg-white px-3 py-2 text-graphite disabled:opacity-60">
+                      Editar
+                    </button>
+                    <button type="button" onClick={() => deleteLancamento(lancamento.id)} disabled={isSaving || deletingLancamentoId === lancamento.id} className="rounded-xl border border-black/10 bg-white px-3 py-2 text-graphite disabled:opacity-60">
+                      {deletingLancamentoId === lancamento.id ? "Excluindo..." : "Excluir"}
+                    </button>
+                  </div>
                 </article>
               ))}
             </div>
