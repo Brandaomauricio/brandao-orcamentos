@@ -53,9 +53,21 @@ type DiarioObra = {
   created_at?: string | null;
 };
 
+type DiarioFoto = {
+  id: string;
+  user_id: string;
+  obra_id: string;
+  diario_id: string;
+  path: string;
+  url: string | null;
+  created_at?: string | null;
+};
+
 type Categoria = Record<string, unknown>;
 type ResumoObra = Record<string, unknown>;
 type PeriodoFiltro = "todos" | "hoje" | "semana" | "mes" | "personalizado";
+
+const diarioFotosBucket = "obra-diarios";
 
 const emptyLancamento = {
   data_lancamento: new Date().toISOString().slice(0, 10),
@@ -187,6 +199,14 @@ function lancamentoValue(lancamento: Lancamento) {
   return Number(lancamento.valor ?? 0);
 }
 
+function safeFileName(fileName: string) {
+  return fileName
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9._-]/g, "-")
+    .toLowerCase();
+}
+
 export default function DetalheControleObraPage() {
   const params = useParams<{ id: string }>();
   const obraId = params.id;
@@ -195,9 +215,11 @@ export default function DetalheControleObraPage() {
   const [resumo, setResumo] = useState<ResumoObra | null>(null);
   const [lancamentos, setLancamentos] = useState<Lancamento[]>([]);
   const [diarios, setDiarios] = useState<DiarioObra[]>([]);
+  const [diarioFotos, setDiarioFotos] = useState<DiarioFoto[]>([]);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [form, setForm] = useState(emptyLancamento);
   const [diarioForm, setDiarioForm] = useState(emptyDiario);
+  const [diarioFiles, setDiarioFiles] = useState<File[]>([]);
   const [message, setMessage] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -208,6 +230,7 @@ export default function DetalheControleObraPage() {
   const [deletingLancamentoId, setDeletingLancamentoId] = useState("");
   const [editingDiarioId, setEditingDiarioId] = useState("");
   const [deletingDiarioId, setDeletingDiarioId] = useState("");
+  const [deletingFotoId, setDeletingFotoId] = useState("");
   const [filters, setFilters] = useState(emptyFilters);
 
   const categoriasFiltradas = useMemo(() => {
@@ -294,11 +317,19 @@ export default function DetalheControleObraPage() {
     return Array.from(map.values()).sort((a, b) => a.categoria.localeCompare(b.categoria, "pt-BR"));
   }, [lancamentosFiltrados]);
 
+  const fotosPorDiario = useMemo(() => {
+    return diarioFotos.reduce<Record<string, DiarioFoto[]>>((acc, foto) => {
+      if (!acc[foto.diario_id]) acc[foto.diario_id] = [];
+      acc[foto.diario_id].push(foto);
+      return acc;
+    }, {});
+  }, [diarioFotos]);
+
   const loadDetalhes = useCallback(async (currentUser: User) => {
     setIsLoading(true);
     setMessage("");
 
-    const [obraResult, resumoResult, lancamentosResult, diariosResult, categoriasResult] = await Promise.all([
+    const [obraResult, resumoResult, lancamentosResult, diariosResult, fotosResult, categoriasResult] = await Promise.all([
       supabase
         .from("obras_controle")
         .select("id,nome_obra,cliente_nome,cliente_telefone,endereco,tipo_piso,metragem_total,valor_fechado,data_inicio,data_previsao_conclusao,status_obra,observacoes")
@@ -325,6 +356,12 @@ export default function DetalheControleObraPage() {
         .eq("user_id", currentUser.id)
         .order("data_relatorio", { ascending: false })
         .order("created_at", { ascending: false }),
+      supabase
+        .from("obra_diario_fotos")
+        .select("id,user_id,obra_id,diario_id,path,url,created_at")
+        .eq("obra_id", obraId)
+        .eq("user_id", currentUser.id)
+        .order("created_at", { ascending: true }),
       supabase
         .from("obra_categorias_financeiras")
         .select("*")
@@ -360,6 +397,13 @@ export default function DetalheControleObraPage() {
       setDiarios([]);
     } else {
       setDiarios((diariosResult.data ?? []) as DiarioObra[]);
+    }
+
+    if (fotosResult.error) {
+      console.error("Erro ao carregar fotos do diario:", fotosResult.error);
+      setDiarioFotos([]);
+    } else {
+      setDiarioFotos((fotosResult.data ?? []) as DiarioFoto[]);
     }
 
     if (categoriasResult.error) {
@@ -521,14 +565,16 @@ export default function DetalheControleObraPage() {
       observacoes: diarioForm.observacoes.trim() || null,
     };
 
-    const { error } = editingDiarioId
+    const { data: savedDiario, error } = editingDiarioId
       ? await supabase
           .from("obra_diarios")
           .update(diarioPayload)
           .eq("id", editingDiarioId)
           .eq("obra_id", obra.id)
           .eq("user_id", user.id)
-      : await supabase.from("obra_diarios").insert(diarioPayload);
+          .select("id")
+          .single()
+      : await supabase.from("obra_diarios").insert(diarioPayload).select("id").single();
 
     if (error) {
       console.error("Erro ao salvar diario da obra:", error);
@@ -537,10 +583,49 @@ export default function DetalheControleObraPage() {
       return;
     }
 
+    const diarioId = savedDiario?.id || editingDiarioId;
+
+    if (diarioId && diarioFiles.length) {
+      const uploaded: Array<{ user_id: string; obra_id: string; diario_id: string; path: string; url: string }> = [];
+
+      for (const file of diarioFiles) {
+        const path = `${user.id}/${obra.id}/${diarioId}/${Date.now()}-${safeFileName(file.name)}`;
+        const uploadResult = await supabase.storage.from(diarioFotosBucket).upload(path, file, {
+          cacheControl: "3600",
+          upsert: false,
+        });
+
+        if (uploadResult.error) {
+          console.error("Erro ao enviar foto do diario:", uploadResult.error);
+          setMessage("O diario foi salvo, mas uma ou mais fotos nao puderam ser enviadas.");
+          continue;
+        }
+
+        const { data: publicUrlData } = supabase.storage.from(diarioFotosBucket).getPublicUrl(path);
+        uploaded.push({
+          user_id: user.id,
+          obra_id: obra.id,
+          diario_id: diarioId,
+          path,
+          url: publicUrlData.publicUrl,
+        });
+      }
+
+      if (uploaded.length) {
+        const { error: fotosError } = await supabase.from("obra_diario_fotos").insert(uploaded);
+
+        if (fotosError) {
+          console.error("Erro ao salvar vinculo das fotos do diario:", fotosError);
+          setMessage("O diario foi salvo, mas nao foi possivel vincular todas as fotos.");
+        }
+      }
+    }
+
     setDiarioForm({ ...emptyDiario, data_relatorio: new Date().toISOString().slice(0, 10) });
+    setDiarioFiles([]);
     setEditingDiarioId("");
     setShowDiarioForm(false);
-    setMessage(editingDiarioId ? "Relatorio do diario atualizado com sucesso." : "Relatorio do diario salvo com sucesso.");
+    setMessage((current) => current || (editingDiarioId ? "Relatorio do diario atualizado com sucesso." : "Relatorio do diario salvo com sucesso."));
     await loadDetalhes(user);
     setIsSavingDiario(false);
   }
@@ -557,6 +642,7 @@ export default function DetalheControleObraPage() {
       clima: diario.clima || "",
       observacoes: diario.observacoes || "",
     });
+    setDiarioFiles([]);
     setShowDiarioForm(true);
     setMessage("Edite o relatorio do diario e salve as alteracoes.");
   }
@@ -564,6 +650,7 @@ export default function DetalheControleObraPage() {
   function cancelEditDiario() {
     setEditingDiarioId("");
     setDiarioForm({ ...emptyDiario, data_relatorio: new Date().toISOString().slice(0, 10) });
+    setDiarioFiles([]);
     setShowDiarioForm(false);
     setMessage("Edicao do diario cancelada.");
   }
@@ -575,6 +662,11 @@ export default function DetalheControleObraPage() {
 
     setDeletingDiarioId(diarioId);
     setMessage("");
+
+    const fotosDoDiario = diarioFotos.filter((foto) => foto.diario_id === diarioId);
+    if (fotosDoDiario.length) {
+      await supabase.storage.from(diarioFotosBucket).remove(fotosDoDiario.map((foto) => foto.path));
+    }
 
     const { error } = await supabase
       .from("obra_diarios")
@@ -599,6 +691,38 @@ export default function DetalheControleObraPage() {
     setMessage("Relatorio do diario excluido com sucesso.");
     await loadDetalhes(user);
     setDeletingDiarioId("");
+  }
+
+  async function deleteDiarioFoto(foto: DiarioFoto) {
+    if (!user || !obra) return;
+    const confirmed = window.confirm("Remover esta foto do diario?");
+    if (!confirmed) return;
+
+    setDeletingFotoId(foto.id);
+    setMessage("");
+
+    const storageResult = await supabase.storage.from(diarioFotosBucket).remove([foto.path]);
+    if (storageResult.error) {
+      console.error("Erro ao remover foto do Storage:", storageResult.error);
+    }
+
+    const { error } = await supabase
+      .from("obra_diario_fotos")
+      .delete()
+      .eq("id", foto.id)
+      .eq("obra_id", obra.id)
+      .eq("user_id", user.id);
+
+    if (error) {
+      console.error("Erro ao remover registro da foto:", error);
+      setMessage("Nao foi possivel remover a foto agora.");
+      setDeletingFotoId("");
+      return;
+    }
+
+    setMessage("Foto removida com sucesso.");
+    await loadDetalhes(user);
+    setDeletingFotoId("");
   }
 
   const resumoCards = [
@@ -676,6 +800,7 @@ export default function DetalheControleObraPage() {
                       cancelEditDiario();
                       return;
                     }
+                    if (showDiarioForm) setDiarioFiles([]);
                     setShowDiarioForm((current) => !current);
                   }}
                   className="rounded-xl border border-black/10 bg-white px-3 py-2 text-xs font-black text-graphite"
@@ -698,6 +823,21 @@ export default function DetalheControleObraPage() {
                   <textarea className="input min-h-24 resize-none" placeholder="Proxima etapa" value={diarioForm.proxima_etapa} onChange={(event) => setDiarioForm({ ...diarioForm, proxima_etapa: event.target.value })} />
                   <input className="input" placeholder="Clima" value={diarioForm.clima} onChange={(event) => setDiarioForm({ ...diarioForm, clima: event.target.value })} />
                   <textarea className="input min-h-24 resize-none" placeholder="Observacoes" value={diarioForm.observacoes} onChange={(event) => setDiarioForm({ ...diarioForm, observacoes: event.target.value })} />
+                  <label className="block">
+                    <span className="label block">Fotos</span>
+                    <input
+                      className="input"
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={(event) => setDiarioFiles(Array.from(event.target.files ?? []))}
+                    />
+                  </label>
+                  {diarioFiles.length ? (
+                    <div className="rounded-2xl bg-technical p-3 text-sm font-bold text-cement">
+                      {diarioFiles.length} foto{diarioFiles.length === 1 ? "" : "s"} selecionada{diarioFiles.length === 1 ? "" : "s"}.
+                    </div>
+                  ) : null}
                   <button type="submit" disabled={isSavingDiario} className="mobile-action mobile-action-primary w-full disabled:opacity-60">
                     {isSavingDiario ? "Salvando..." : editingDiarioId ? "Salvar alteracoes" : "Salvar diario"}
                   </button>
@@ -726,6 +866,27 @@ export default function DetalheControleObraPage() {
                     {diario.pendencias ? <p className="mt-2 whitespace-pre-line text-sm text-cement"><strong className="text-graphite">Pendencias:</strong> {diario.pendencias}</p> : null}
                     {diario.proxima_etapa ? <p className="mt-2 whitespace-pre-line text-sm text-cement"><strong className="text-graphite">Proxima etapa:</strong> {diario.proxima_etapa}</p> : null}
                     {diario.observacoes ? <p className="mt-2 whitespace-pre-line text-sm text-cement"><strong className="text-graphite">Observacoes:</strong> {diario.observacoes}</p> : null}
+                    {fotosPorDiario[diario.id]?.length ? (
+                      <div className="mt-4 grid grid-cols-2 gap-2">
+                        {fotosPorDiario[diario.id].map((foto) => {
+                          const imageUrl = foto.url || supabase.storage.from(diarioFotosBucket).getPublicUrl(foto.path).data.publicUrl;
+
+                          return (
+                            <div key={foto.id} className="overflow-hidden rounded-2xl bg-white">
+                              <img src={imageUrl} alt="Foto do diario de obra" className="h-32 w-full object-cover" />
+                              <button
+                                type="button"
+                                onClick={() => deleteDiarioFoto(foto)}
+                                disabled={deletingFotoId === foto.id}
+                                className="w-full px-3 py-2 text-xs font-black text-graphite disabled:opacity-60"
+                              >
+                                {deletingFotoId === foto.id ? "Removendo..." : "Remover foto"}
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : null}
                     <div className="mt-4 grid grid-cols-2 gap-2 text-center text-sm font-black">
                       <button type="button" onClick={() => editDiario(diario)} disabled={isSavingDiario || deletingDiarioId === diario.id} className="rounded-xl border border-black/10 bg-white px-3 py-2 text-graphite disabled:opacity-60">
                         Editar
