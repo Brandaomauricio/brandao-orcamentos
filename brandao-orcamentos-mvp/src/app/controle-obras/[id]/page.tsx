@@ -39,6 +39,20 @@ type Lancamento = {
   created_at?: string | null;
 };
 
+type DiarioObra = {
+  id: string;
+  obra_id: string;
+  data_relatorio: string | null;
+  equipe: string | null;
+  atividades_realizadas: string | null;
+  problemas_encontrados: string | null;
+  pendencias: string | null;
+  proxima_etapa: string | null;
+  clima: string | null;
+  observacoes: string | null;
+  created_at?: string | null;
+};
+
 type Categoria = Record<string, unknown>;
 type ResumoObra = Record<string, unknown>;
 type PeriodoFiltro = "todos" | "hoje" | "semana" | "mes" | "personalizado";
@@ -52,6 +66,17 @@ const emptyLancamento = {
   status: "pago",
   forma_pagamento: "",
   observacao: "",
+};
+
+const emptyDiario = {
+  data_relatorio: new Date().toISOString().slice(0, 10),
+  equipe: "",
+  atividades_realizadas: "",
+  problemas_encontrados: "",
+  pendencias: "",
+  proxima_etapa: "",
+  clima: "",
+  observacoes: "",
 };
 
 const statusLancamentoOptions = [
@@ -169,14 +194,20 @@ export default function DetalheControleObraPage() {
   const [obra, setObra] = useState<ObraControle | null>(null);
   const [resumo, setResumo] = useState<ResumoObra | null>(null);
   const [lancamentos, setLancamentos] = useState<Lancamento[]>([]);
+  const [diarios, setDiarios] = useState<DiarioObra[]>([]);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [form, setForm] = useState(emptyLancamento);
+  const [diarioForm, setDiarioForm] = useState(emptyDiario);
   const [message, setMessage] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isSavingDiario, setIsSavingDiario] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const [showDiarioForm, setShowDiarioForm] = useState(false);
   const [editingLancamentoId, setEditingLancamentoId] = useState("");
   const [deletingLancamentoId, setDeletingLancamentoId] = useState("");
+  const [editingDiarioId, setEditingDiarioId] = useState("");
+  const [deletingDiarioId, setDeletingDiarioId] = useState("");
   const [filters, setFilters] = useState(emptyFilters);
 
   const categoriasFiltradas = useMemo(() => {
@@ -267,7 +298,7 @@ export default function DetalheControleObraPage() {
     setIsLoading(true);
     setMessage("");
 
-    const [obraResult, resumoResult, lancamentosResult, categoriasResult] = await Promise.all([
+    const [obraResult, resumoResult, lancamentosResult, diariosResult, categoriasResult] = await Promise.all([
       supabase
         .from("obras_controle")
         .select("id,nome_obra,cliente_nome,cliente_telefone,endereco,tipo_piso,metragem_total,valor_fechado,data_inicio,data_previsao_conclusao,status_obra,observacoes")
@@ -286,6 +317,13 @@ export default function DetalheControleObraPage() {
         .eq("obra_id", obraId)
         .eq("user_id", currentUser.id)
         .order("data_lancamento", { ascending: false })
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("obra_diarios")
+        .select("id,obra_id,data_relatorio,equipe,atividades_realizadas,problemas_encontrados,pendencias,proxima_etapa,clima,observacoes,created_at")
+        .eq("obra_id", obraId)
+        .eq("user_id", currentUser.id)
+        .order("data_relatorio", { ascending: false })
         .order("created_at", { ascending: false }),
       supabase
         .from("obra_categorias_financeiras")
@@ -314,6 +352,14 @@ export default function DetalheControleObraPage() {
       setLancamentos([]);
     } else {
       setLancamentos((lancamentosResult.data ?? []) as Lancamento[]);
+    }
+
+    if (diariosResult.error) {
+      console.error("Erro ao carregar diario da obra:", diariosResult.error);
+      setMessage((current) => current || "Nao foi possivel carregar o diario da obra agora.");
+      setDiarios([]);
+    } else {
+      setDiarios((diariosResult.data ?? []) as DiarioObra[]);
     }
 
     if (categoriasResult.error) {
@@ -448,6 +494,113 @@ export default function DetalheControleObraPage() {
     setDeletingLancamentoId("");
   }
 
+  async function saveDiario(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!user || !obra) {
+      setMessage("Entre na sua conta para adicionar relatorios no diario.");
+      return;
+    }
+    if (!diarioForm.atividades_realizadas.trim()) {
+      setMessage("Informe as atividades realizadas no diario da obra.");
+      return;
+    }
+
+    setIsSavingDiario(true);
+    setMessage("");
+
+    const diarioPayload = {
+      user_id: user.id,
+      obra_id: obra.id,
+      data_relatorio: diarioForm.data_relatorio || null,
+      equipe: diarioForm.equipe.trim() || null,
+      atividades_realizadas: diarioForm.atividades_realizadas.trim(),
+      problemas_encontrados: diarioForm.problemas_encontrados.trim() || null,
+      pendencias: diarioForm.pendencias.trim() || null,
+      proxima_etapa: diarioForm.proxima_etapa.trim() || null,
+      clima: diarioForm.clima.trim() || null,
+      observacoes: diarioForm.observacoes.trim() || null,
+    };
+
+    const { error } = editingDiarioId
+      ? await supabase
+          .from("obra_diarios")
+          .update(diarioPayload)
+          .eq("id", editingDiarioId)
+          .eq("obra_id", obra.id)
+          .eq("user_id", user.id)
+      : await supabase.from("obra_diarios").insert(diarioPayload);
+
+    if (error) {
+      console.error("Erro ao salvar diario da obra:", error);
+      setMessage("Nao foi possivel salvar o diario da obra agora.");
+      setIsSavingDiario(false);
+      return;
+    }
+
+    setDiarioForm({ ...emptyDiario, data_relatorio: new Date().toISOString().slice(0, 10) });
+    setEditingDiarioId("");
+    setShowDiarioForm(false);
+    setMessage(editingDiarioId ? "Relatorio do diario atualizado com sucesso." : "Relatorio do diario salvo com sucesso.");
+    await loadDetalhes(user);
+    setIsSavingDiario(false);
+  }
+
+  function editDiario(diario: DiarioObra) {
+    setEditingDiarioId(diario.id);
+    setDiarioForm({
+      data_relatorio: diario.data_relatorio || new Date().toISOString().slice(0, 10),
+      equipe: diario.equipe || "",
+      atividades_realizadas: diario.atividades_realizadas || "",
+      problemas_encontrados: diario.problemas_encontrados || "",
+      pendencias: diario.pendencias || "",
+      proxima_etapa: diario.proxima_etapa || "",
+      clima: diario.clima || "",
+      observacoes: diario.observacoes || "",
+    });
+    setShowDiarioForm(true);
+    setMessage("Edite o relatorio do diario e salve as alteracoes.");
+  }
+
+  function cancelEditDiario() {
+    setEditingDiarioId("");
+    setDiarioForm({ ...emptyDiario, data_relatorio: new Date().toISOString().slice(0, 10) });
+    setShowDiarioForm(false);
+    setMessage("Edicao do diario cancelada.");
+  }
+
+  async function deleteDiario(diarioId: string) {
+    if (!user || !obra) return;
+    const confirmed = window.confirm("Excluir este relatorio do diario de obra?");
+    if (!confirmed) return;
+
+    setDeletingDiarioId(diarioId);
+    setMessage("");
+
+    const { error } = await supabase
+      .from("obra_diarios")
+      .delete()
+      .eq("id", diarioId)
+      .eq("obra_id", obra.id)
+      .eq("user_id", user.id);
+
+    if (error) {
+      console.error("Erro ao excluir diario da obra:", error);
+      setMessage("Nao foi possivel excluir o diario da obra agora.");
+      setDeletingDiarioId("");
+      return;
+    }
+
+    if (editingDiarioId === diarioId) {
+      setEditingDiarioId("");
+      setDiarioForm({ ...emptyDiario, data_relatorio: new Date().toISOString().slice(0, 10) });
+      setShowDiarioForm(false);
+    }
+
+    setMessage("Relatorio do diario excluido com sucesso.");
+    await loadDetalhes(user);
+    setDeletingDiarioId("");
+  }
+
   const resumoCards = [
     { label: "Valor fechado", value: currencyBRL(getResumoValue(resumo, "valor_fechado") || numberFrom(obra, ["valor_fechado"])) },
     { label: "Entradas recebidas", value: currencyBRL(getResumoValue(resumo, "entradas_recebidas")) },
@@ -508,6 +661,82 @@ export default function DetalheControleObraPage() {
                   <p className="mt-2 text-xl font-black text-graphite">{card.value}</p>
                 </div>
               ))}
+            </section>
+
+            <section className="card mt-6 p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.14em] text-cement">Registro da obra</p>
+                  <h2 className="mt-1 text-lg font-black text-graphite">Diario de Obra</h2>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (showDiarioForm && editingDiarioId) {
+                      cancelEditDiario();
+                      return;
+                    }
+                    setShowDiarioForm((current) => !current);
+                  }}
+                  className="rounded-xl border border-black/10 bg-white px-3 py-2 text-xs font-black text-graphite"
+                >
+                  {showDiarioForm ? "Fechar" : "+ Novo"}
+                </button>
+              </div>
+
+              {showDiarioForm ? (
+                <form onSubmit={saveDiario} className="mt-4 space-y-3">
+                  <h3 className="text-base font-black text-graphite">{editingDiarioId ? "Editar relatorio" : "Novo relatorio diario"}</h3>
+                  <label className="block">
+                    <span className="label block">Data do relatorio</span>
+                    <input className="input" type="date" value={diarioForm.data_relatorio} onChange={(event) => setDiarioForm({ ...diarioForm, data_relatorio: event.target.value })} />
+                  </label>
+                  <input className="input" placeholder="Equipe presente" value={diarioForm.equipe} onChange={(event) => setDiarioForm({ ...diarioForm, equipe: event.target.value })} />
+                  <textarea className="input min-h-28 resize-none" placeholder="Atividades realizadas" value={diarioForm.atividades_realizadas} onChange={(event) => setDiarioForm({ ...diarioForm, atividades_realizadas: event.target.value })} required />
+                  <textarea className="input min-h-24 resize-none" placeholder="Problemas encontrados" value={diarioForm.problemas_encontrados} onChange={(event) => setDiarioForm({ ...diarioForm, problemas_encontrados: event.target.value })} />
+                  <textarea className="input min-h-24 resize-none" placeholder="Pendencias" value={diarioForm.pendencias} onChange={(event) => setDiarioForm({ ...diarioForm, pendencias: event.target.value })} />
+                  <textarea className="input min-h-24 resize-none" placeholder="Proxima etapa" value={diarioForm.proxima_etapa} onChange={(event) => setDiarioForm({ ...diarioForm, proxima_etapa: event.target.value })} />
+                  <input className="input" placeholder="Clima" value={diarioForm.clima} onChange={(event) => setDiarioForm({ ...diarioForm, clima: event.target.value })} />
+                  <textarea className="input min-h-24 resize-none" placeholder="Observacoes" value={diarioForm.observacoes} onChange={(event) => setDiarioForm({ ...diarioForm, observacoes: event.target.value })} />
+                  <button type="submit" disabled={isSavingDiario} className="mobile-action mobile-action-primary w-full disabled:opacity-60">
+                    {isSavingDiario ? "Salvando..." : editingDiarioId ? "Salvar alteracoes" : "Salvar diario"}
+                  </button>
+                  {editingDiarioId ? (
+                    <button type="button" onClick={cancelEditDiario} disabled={isSavingDiario} className="mobile-action w-full border border-black/10 bg-white text-graphite disabled:opacity-60">
+                      Cancelar edicao
+                    </button>
+                  ) : null}
+                </form>
+              ) : null}
+
+              <div className="mt-4 space-y-3">
+                {!diarios.length ? <div className="rounded-2xl bg-technical p-4 text-sm font-bold text-cement">Nenhum relatorio diario cadastrado ainda.</div> : null}
+                {diarios.map((diario) => (
+                  <article key={diario.id} className="rounded-2xl bg-technical p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-xs font-black uppercase tracking-[0.12em] text-cement">Relatorio</p>
+                        <p className="mt-1 text-lg font-black text-graphite">{formatDate(diario.data_relatorio)}</p>
+                      </div>
+                      {diario.clima ? <StatusPill>{diario.clima}</StatusPill> : null}
+                    </div>
+                    {diario.equipe ? <p className="mt-3 text-sm text-cement"><strong className="text-graphite">Equipe:</strong> {diario.equipe}</p> : null}
+                    <p className="mt-3 whitespace-pre-line text-sm text-cement"><strong className="text-graphite">Atividades:</strong> {diario.atividades_realizadas || "nao informado"}</p>
+                    {diario.problemas_encontrados ? <p className="mt-2 whitespace-pre-line text-sm text-cement"><strong className="text-graphite">Problemas:</strong> {diario.problemas_encontrados}</p> : null}
+                    {diario.pendencias ? <p className="mt-2 whitespace-pre-line text-sm text-cement"><strong className="text-graphite">Pendencias:</strong> {diario.pendencias}</p> : null}
+                    {diario.proxima_etapa ? <p className="mt-2 whitespace-pre-line text-sm text-cement"><strong className="text-graphite">Proxima etapa:</strong> {diario.proxima_etapa}</p> : null}
+                    {diario.observacoes ? <p className="mt-2 whitespace-pre-line text-sm text-cement"><strong className="text-graphite">Observacoes:</strong> {diario.observacoes}</p> : null}
+                    <div className="mt-4 grid grid-cols-2 gap-2 text-center text-sm font-black">
+                      <button type="button" onClick={() => editDiario(diario)} disabled={isSavingDiario || deletingDiarioId === diario.id} className="rounded-xl border border-black/10 bg-white px-3 py-2 text-graphite disabled:opacity-60">
+                        Editar
+                      </button>
+                      <button type="button" onClick={() => deleteDiario(diario.id)} disabled={isSavingDiario || deletingDiarioId === diario.id} className="rounded-xl border border-black/10 bg-white px-3 py-2 text-graphite disabled:opacity-60">
+                        {deletingDiarioId === diario.id ? "Excluindo..." : "Excluir"}
+                      </button>
+                    </div>
+                  </article>
+                ))}
+              </div>
             </section>
 
             <button
